@@ -831,8 +831,7 @@
       }
 
       .theme-form--login .theme-field {
-        width: 100%;
-        max-width: 320px;
+        width: min(100%, 18.75rem);
         margin-left: auto;
         margin-right: auto;
         align-items: stretch;
@@ -857,8 +856,7 @@
       }
 
       .theme-form--login .theme-form__footer {
-        width: 100%;
-        max-width: 320px;
+        width: min(100%, 18.75rem);
         margin-left: auto;
         margin-right: auto;
         align-items: stretch;
@@ -866,6 +864,15 @@
 
       .theme-form--login .theme-button--block {
         max-width: none;
+        width: 100%;
+      }
+
+      .theme-card--auth .theme-card__header {
+        padding-bottom: 1.35rem;
+      }
+
+      .theme-card--auth .theme-card__subtitle {
+        margin-top: 0.6rem;
       }
 
       .theme-form__grid {
@@ -1518,15 +1525,19 @@
         .theme-hero__title {
           font-size: clamp(1.35rem, 6vw, 1.65rem);
           line-height: 1.2;
+          text-align: center;
         }
 
         .theme-hero__heading {
           width: 100%;
+          align-items: center;
+          text-align: center;
         }
 
         .theme-hero__title-row {
           width: 100%;
-          justify-content: space-between;
+          justify-content: center;
+          gap: 0.5rem;
         }
 
         .theme-hero__title-text--full {
@@ -1542,6 +1553,16 @@
           align-items: center;
           justify-content: center;
           flex-shrink: 0;
+        }
+
+        .theme-hero__top {
+          align-items: center;
+          margin-bottom: 0.75rem;
+        }
+
+        .theme-hero__brand {
+          margin-left: auto;
+          margin-right: auto;
         }
 
         .theme-hero__actions {
