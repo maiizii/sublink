@@ -375,6 +375,70 @@
         margin: 0;
       }
 
+      .theme-hero__title-row {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+      }
+
+      .theme-hero__title-row .theme-hero__title {
+        flex: 1 1 auto;
+      }
+
+      .theme-hero__title-text {
+        display: block;
+      }
+
+      .theme-hero__title-text--compact {
+        display: none;
+      }
+
+      .theme-hero__mobile-switch {
+        display: none;
+      }
+
+      .theme-toggle--mobile {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 2.25rem;
+        height: 2.25rem;
+        border-radius: 999px;
+        border: 1px solid var(--theme-button-border);
+        background: rgba(255, 255, 255, 0.18);
+        color: var(--theme-hero-text);
+        transition: background 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+      }
+
+      .theme-toggle--mobile:focus-visible {
+        outline: none;
+        border-color: var(--theme-input-focus-border);
+        box-shadow: var(--theme-input-focus-shadow);
+      }
+
+      :root[data-theme="nebula"] .theme-toggle--mobile {
+        background: rgba(15, 23, 42, 0.45);
+        border-color: rgba(94, 234, 212, 0.25);
+        color: var(--theme-hero-text);
+      }
+
+      .theme-toggle--mobile svg {
+        width: 1.15rem;
+        height: 1.15rem;
+      }
+
+      .theme-toggle--mobile .theme-toggle__icon {
+        display: none;
+      }
+
+      .theme-toggle--mobile[data-next-theme="nebula"] .theme-toggle__icon--moon {
+        display: inline-flex;
+      }
+
+      .theme-toggle--mobile[data-next-theme="aurora"] .theme-toggle__icon--sun {
+        display: inline-flex;
+      }
+
       .theme-hero__subtitle {
         margin-top: 0.5rem;
         max-width: 620px;
@@ -1434,41 +1498,66 @@
 
       @media (max-width: 640px) {
         .theme-main {
-          padding: 0 1.1rem 1.75rem;
+          padding: 0 0.85rem 1.75rem;
         }
 
         .theme-layout {
-          padding-left: 1.1rem;
-          padding-right: 1.1rem;
+          padding-left: 0.75rem;
+          padding-right: 0.75rem;
           gap: 1.75rem;
         }
 
         header.theme-hero {
-          padding: 1.85rem 1rem 1.5rem;
+          padding: 1.85rem 0.9rem 1.5rem;
         }
 
         .theme-hero__inner {
-          padding: 1.75rem 1.25rem;
+          padding: 1.75rem 1.1rem;
+        }
+
+        .theme-hero__title {
+          font-size: clamp(1.35rem, 6vw, 1.65rem);
+          line-height: 1.2;
         }
 
         .theme-hero__heading {
           width: 100%;
         }
 
-        .theme-hero__title {
-          font-size: clamp(1.75rem, 6vw + 0.5rem, 2.25rem);
+        .theme-hero__title-row {
+          width: 100%;
+          justify-content: space-between;
         }
 
-        .theme-hero__subtitle {
-          font-size: 0.95rem;
+        .theme-hero__title-text--full {
+          display: none;
+        }
+
+        .theme-hero__title-text--compact {
+          display: inline;
+        }
+
+        .theme-hero__mobile-switch {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          flex-shrink: 0;
         }
 
         .theme-hero__actions {
           gap: 0.6rem;
         }
 
+        .theme-hero__actions .theme-theme-switch {
+          display: none;
+        }
+
+        .theme-hero__subtitle {
+          font-size: 0.95rem;
+        }
+
         .theme-tabs {
-          padding: 1.25rem 1.25rem 0;
+          padding: 1.1rem 1.05rem 0;
           gap: 0.6rem;
         }
 
@@ -1478,19 +1567,23 @@
         }
 
         .theme-shell__body {
-          padding: 1.35rem 1.25rem 1.85rem;
+          padding: 1.25rem 0.9rem 1.75rem;
         }
 
         .theme-shell__body--center {
-          padding: 1.75rem 1.25rem 2rem;
+          padding: 1.5rem 0.9rem 1.9rem;
+        }
+
+        .theme-card--narrow {
+          max-width: 100%;
         }
 
         .theme-card__header {
-          padding: 1.2rem 1.25rem 1rem;
+          padding: 1.15rem 1.1rem 0.95rem;
         }
 
         .theme-card__body {
-          padding: 1.25rem;
+          padding: 1.2rem;
         }
 
         .theme-card__subtitle {
@@ -1526,7 +1619,9 @@
 
         .theme-form--login .theme-field,
         .theme-form--login .theme-form__footer {
-          max-width: none;
+          max-width: 100%;
+          margin-left: 0;
+          margin-right: 0;
         }
 
         .theme-tabs::-webkit-scrollbar {
@@ -1579,7 +1674,44 @@
               />
               <span class="sr-only">yet.la Platform</span>
             </div>
-            <h1 class="theme-hero__title">yet.la 短链子域管理后台</h1>
+            <div class="theme-hero__title-row">
+              <h1 class="theme-hero__title">
+                <span class="theme-hero__title-text theme-hero__title-text--full"
+                  >yet.la 短链子域管理后台</span
+                >
+                <span class="theme-hero__title-text theme-hero__title-text--compact"
+                  >短链子域管理后台</span
+                >
+              </h1>
+              <div class="theme-hero__mobile-switch">
+                <button
+                  type="button"
+                  class="theme-toggle theme-toggle--mobile"
+                  data-theme-toggle-cycle
+                  data-next-theme="nebula"
+                  aria-label="切换到暗色主题"
+                >
+                  <span class="sr-only" data-theme-toggle-label>切换到暗色主题</span>
+                  <svg
+                    class="theme-toggle__icon theme-toggle__icon--moon"
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                  >
+                    <path d="M21 12.79A9 9 0 0 1 11.21 3 7 7 0 1 0 21 12.79z"></path>
+                  </svg>
+                  <svg
+                    class="theme-toggle__icon theme-toggle__icon--sun"
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                  >
+                    <circle cx="12" cy="12" r="5"></circle>
+                    <path
+                      d="M12 1v2m0 18v2m11-11h-2M3 12H1m16.95-6.95-1.41 1.41M8.46 17.54l-1.41 1.41M17.54 17.54l-1.41-1.41M7.05 7.05 5.64 5.64"
+                    ></path>
+                  </svg>
+                </button>
+              </div>
+            </div>
           </div>
           <div class="theme-hero__actions">
             <div class="theme-theme-switch" role="group" aria-label="主题切换">

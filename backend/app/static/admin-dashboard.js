@@ -484,6 +484,25 @@
     });
   }
 
+  function updateMobileThemeToggle(activeTheme) {
+    const toggle = document.querySelector("[data-theme-toggle-cycle]");
+    if (!toggle) {
+      return;
+    }
+
+    const sanitizedActive = sanitizeTheme(activeTheme);
+    const nextTheme = sanitizedActive === "nebula" ? "aurora" : "nebula";
+    const labelText = nextTheme === "nebula" ? "切换到暗色主题" : "切换到亮色主题";
+
+    toggle.setAttribute("data-next-theme", nextTheme);
+    toggle.setAttribute("aria-label", labelText);
+
+    const label = toggle.querySelector("[data-theme-toggle-label]");
+    if (label) {
+      label.textContent = labelText;
+    }
+  }
+
   function setTheme(theme, { persist = false, preview = false } = {}) {
     const targetTheme = sanitizeTheme(theme);
 
@@ -509,6 +528,7 @@
     const activeTheme = storedThemeValue || targetTheme;
     highlightThemeCards(activeTheme, preview ? targetTheme : undefined);
     highlightThemeToggles(activeTheme);
+    updateMobileThemeToggle(targetTheme);
   }
 
   function getStoredTheme() {
@@ -563,6 +583,24 @@
     });
 
     highlightThemeToggles(getStoredTheme());
+  }
+
+  function bindMobileThemeToggle() {
+    const toggle = document.querySelector("[data-theme-toggle-cycle]");
+
+    if (!toggle || toggle.dataset.themeToggleBound === "true") {
+      updateMobileThemeToggle(getStoredTheme());
+      return;
+    }
+
+    toggle.dataset.themeToggleBound = "true";
+    toggle.addEventListener("click", (event) => {
+      event.preventDefault();
+      const nextTheme = sanitizeTheme(toggle.getAttribute("data-next-theme"));
+      setTheme(nextTheme, { persist: true });
+    });
+
+    updateMobileThemeToggle(getStoredTheme());
   }
 
   function bindThemeGallery() {
@@ -812,6 +850,7 @@
 
     restorePersistedTheme();
     bindThemeToggles();
+    bindMobileThemeToggle();
     bindThemeGallery();
     enhanceDynamicUI();
 
