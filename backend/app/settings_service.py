@@ -167,27 +167,41 @@ def build_short_link_prefix(settings: SiteSettings) -> str:
     return f"{base_url}{path}"
 
 
-def extract_short_code(path: str, settings: SiteSettings) -> str | None:
-    """Extract a short code from the request path based on configured prefix."""
+def extract_short_link(path: str, settings: SiteSettings) -> tuple[str, str] | None:
+    """Extract a short link code and remaining path based on configured prefix."""
 
+    normalized_path = (path or "").lstrip("/")
     configured = settings.short_link_path
     if configured != "/":
-        trimmed_path = path.strip("/")
         normalized_prefix = "/".join(
             segment for segment in configured.strip("/").split("/") if segment
         )
         if not normalized_prefix:
             normalized_prefix = ""
-        if not trimmed_path.startswith(normalized_prefix):
+        if not normalized_path.startswith(normalized_prefix):
             return None
-        remainder = trimmed_path[len(normalized_prefix) :]
+        remainder = normalized_path[len(normalized_prefix) :]
         if remainder.startswith("/"):
             remainder = remainder[1:]
         elif remainder:
             return None
     else:
-        remainder = path.strip("/")
+        remainder = normalized_path
 
-    if not remainder or "/" in remainder:
+    if not remainder:
         return None
-    return remainder
+
+    code, _, extra = remainder.partition("/")
+    if not code:
+        return None
+    return code, extra
+
+
+def extract_short_code(path: str, settings: SiteSettings) -> str | None:
+    """Backward compatible helper returning only the short link code."""
+
+    match = extract_short_link(path, settings)
+    if match is None:
+        return None
+    code, _ = match
+    return code

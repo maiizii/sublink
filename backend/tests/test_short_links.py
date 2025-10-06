@@ -50,6 +50,38 @@ def test_redirect_short_link_and_hits(client: "SimpleClient") -> None:
     assert records[0]["hits"] == 1
 
 
+def test_short_link_redirect_with_extra_path_and_query(client: "SimpleClient") -> None:
+    client.post(
+        "/api/links",
+        json={"target_url": "https://docs.example.com", "code": "docs"},
+        auth=ADMIN_AUTH,
+    )
+
+    response = client.get(
+        "/docs/guide/v1/?lang=zh",
+        headers={"host": "yet.la"},
+        follow_redirects=False,
+    )
+    assert response.status_code == 302
+    assert response.headers["location"] == "https://docs.example.com/guide/v1/?lang=zh"
+
+
+def test_short_link_with_same_host_drops_extra_path(client: "SimpleClient") -> None:
+    client.post(
+        "/api/links",
+        json={"target_url": "https://yet.la/welcome/", "code": "welcome"},
+        auth=ADMIN_AUTH,
+    )
+
+    response = client.get(
+        "/welcome/docs?ref=test",
+        headers={"host": "yet.la"},
+        follow_redirects=False,
+    )
+    assert response.status_code == 302
+    assert response.headers["location"] == "https://yet.la/welcome/?ref=test"
+
+
 def test_redirect_short_link_with_admin_prefix(client: "SimpleClient") -> None:
     update = client.put(
         "/api/settings",

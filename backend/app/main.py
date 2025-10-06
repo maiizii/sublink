@@ -54,7 +54,7 @@ from .security import hash_password, verify_password
 from .settings_service import (
     build_short_link_prefix,
     ensure_default_settings,
-    extract_short_code,
+    extract_short_link,
     get_site_settings,
     resolve_short_link_hosts,
     update_site_settings,
@@ -1007,8 +1007,9 @@ def catch_all(
         fallback_url = f"https://{fallback_domain}"
 
     if allow_short_link and request.method in {"GET", "HEAD"}:
-        code = extract_short_code(path, settings)
-        if code:
+        match = extract_short_link(path, settings)
+        if match:
+            code, extra_path = match
             short_link = db.scalar(select(ShortLink).where(ShortLink.code == code))
             if short_link is None:
                 return RedirectResponse(
@@ -1019,9 +1020,25 @@ def catch_all(
             db.add(short_link)
             _commit_session(db)
 
-            return RedirectResponse(
-                short_link.target_url, status_code=status.HTTP_302_FOUND
-            )
+            query = request.url.query or ""
+            target_host = _extract_host_from_url(short_link.target_url)
+            include_path = bool(extra_path) and target_host not in {"", host}
+            if include_path:
+                destination = _compose_redirect_target(
+                    short_link.target_url,
+                    path=extra_path,
+                    query=query,
+                    include_path=True,
+                )
+            else:
+                destination = short_link.target_url
+                if query:
+                    separator = "&" if "?" in destination else "?"
+                    destination = f"{destination}{separator}{query}"
+
+            return RedirectResponse(destination, status_code=status.HTTP_302_FOUND)
+        elif settings.short_link_path != "/" and "/" not in (path or ""):
+            return PlainTextResponse("Not Found", status_code=status.HTTP_404_NOT_FOUND)
 
     redirect = db.scalar(select(SubdomainRedirect).where(SubdomainRedirect.host == host))
     if redirect is not None:
