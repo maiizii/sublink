@@ -440,13 +440,28 @@ async def update_site_settings_endpoint(
     """更新站点设置（管理员限定）。"""
 
     settings = update_site_settings(db, **payload.model_dump())
+    short_link_prefix = build_short_link_prefix(settings)
     hx_request = request.headers.get("hx-request") == "true"
     if hx_request:
-        redirect_url = "/admin?tab=settings&saved=1"
+        feedback_html = (
+            "<div class=\"rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700\">"
+            "站点设置已更新"
+            "</div>"
+        )
+        template = admin_templates.get_template("admin/partials/settings_card.html")
+        content = template.render(
+            {
+                "request": request,
+                "site_settings": settings,
+                "short_link_prefix": short_link_prefix,
+                "short_link_example": f"{short_link_prefix}example",
+                "settings_feedback_html": feedback_html,
+            }
+        )
         return HTMLResponse(
-            "",
-            status_code=status.HTTP_204_NO_CONTENT,
-            headers={"HX-Redirect": redirect_url},
+            content,
+            status_code=status.HTTP_200_OK,
+            headers={"HX-Trigger": "settings-updated"},
         )
 
     response.headers["HX-Trigger"] = "settings-updated"
@@ -957,17 +972,6 @@ def catch_all(
         return PlainTextResponse("Not Found", status_code=status.HTTP_404_NOT_FOUND)
     host = raw_host.split(":", 1)[0]
 
-    redirect = db.scalar(select(SubdomainRedirect).where(SubdomainRedirect.host == host))
-    if redirect is not None:
-        redirect.hits += 1
-        db.add(redirect)
-        _commit_session(db)
-
-        destination = _compose_redirect_target(
-            redirect.target_url, path=path, query=request.url.query or ""
-        )
-        return RedirectResponse(destination, status_code=redirect.code)
-
     settings = get_site_settings(db)
     allow_short_link = host == settings.site_domain.strip().lower()
 
@@ -985,5 +989,16 @@ def catch_all(
             return RedirectResponse(
                 short_link.target_url, status_code=status.HTTP_302_FOUND
             )
+
+    redirect = db.scalar(select(SubdomainRedirect).where(SubdomainRedirect.host == host))
+    if redirect is not None:
+        redirect.hits += 1
+        db.add(redirect)
+        _commit_session(db)
+
+        destination = _compose_redirect_target(
+            redirect.target_url, path=path, query=request.url.query or ""
+        )
+        return RedirectResponse(destination, status_code=redirect.code)
 
     return PlainTextResponse("Not Found", status_code=status.HTTP_404_NOT_FOUND)
