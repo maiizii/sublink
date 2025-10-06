@@ -31,6 +31,7 @@ from .models import (
     ensure_subdomain_hits_column,
     ensure_user_association_columns,
     engine,
+    DEFAULT_SITE_DOMAIN,
 )
 from .schemas import (
     ShortLink as ShortLinkSchema,
@@ -977,12 +978,20 @@ def catch_all(
     short_link_hosts = resolve_short_link_hosts(settings)
     allow_short_link = host in short_link_hosts
 
+    fallback_domain = (settings.site_domain or "").strip()
+    if "://" in fallback_domain:
+        fallback_domain = fallback_domain.split("://", 1)[1]
+    fallback_domain = fallback_domain.strip("/") or DEFAULT_SITE_DOMAIN
+    fallback_url = f"https://{fallback_domain}"
+
     if allow_short_link and request.method in {"GET", "HEAD"}:
         code = extract_short_code(path, settings)
         if code:
             short_link = db.scalar(select(ShortLink).where(ShortLink.code == code))
             if short_link is None:
-                raise HTTPException(status.HTTP_404_NOT_FOUND, detail="短链接不存在")
+                return RedirectResponse(
+                    fallback_url, status_code=status.HTTP_302_FOUND
+                )
 
             short_link.hits += 1
             db.add(short_link)
@@ -1003,4 +1012,4 @@ def catch_all(
         )
         return RedirectResponse(destination, status_code=redirect.code)
 
-    return PlainTextResponse("Not Found", status_code=status.HTTP_404_NOT_FOUND)
+    return RedirectResponse(fallback_url, status_code=status.HTTP_302_FOUND)

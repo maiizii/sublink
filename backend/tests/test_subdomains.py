@@ -44,8 +44,8 @@ def test_delete_subdomain(client: "SimpleClient") -> None:
     assert deleted.status_code == 204
 
     fallback = client.get("/", headers={"host": "remove.test"}, follow_redirects=False)
-    assert fallback.status_code == 404
-    assert fallback.text == "Not Found"
+    assert fallback.status_code == 302
+    assert fallback.headers["location"] == "https://yet.la"
 
 
 def test_update_subdomain_via_htmx_form(client: "SimpleClient") -> None:
@@ -144,8 +144,8 @@ def test_permanent_redirect_counts_hits(client: "SimpleClient") -> None:
 
 def test_host_redirect_not_found(client: "SimpleClient") -> None:
     response = client.get("/", headers={"host": "unknown.test"}, follow_redirects=False)
-    assert response.status_code == 404
-    assert response.text == "Not Found"
+    assert response.status_code == 302
+    assert response.headers["location"] == "https://yet.la"
 
 
 def test_admin_subdomain_table_includes_user_column(client: "SimpleClient") -> None:
