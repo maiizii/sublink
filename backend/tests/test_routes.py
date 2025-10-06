@@ -19,3 +19,13 @@ def test_routes_endpoint_lists_subdomains(client: "SimpleClient") -> None:
     assert response.status_code == 200
     hosts = [item["host"] for item in response.json()]
     assert hosts == ["a.test", "b.test"]
+
+
+def test_fallback_redirect_strips_site_domain_path(client: "SimpleClient") -> None:
+    settings = client.get("/api/settings", auth=ADMIN_AUTH).json()
+    settings["site_domain"] = "https://yet.la/admin"
+    client.put("/api/settings", json=settings, auth=ADMIN_AUTH)
+
+    response = client.get("/foo/bar", headers={"host": "yet.la"}, follow_redirects=False)
+    assert response.status_code == 302
+    assert response.headers["location"] == "https://yet.la"
