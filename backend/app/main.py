@@ -55,6 +55,7 @@ from .settings_service import (
     ensure_default_settings,
     extract_short_code,
     get_site_settings,
+    resolve_short_link_hosts,
     update_site_settings,
 )
 
@@ -973,7 +974,8 @@ def catch_all(
     host = raw_host.split(":", 1)[0]
 
     settings = get_site_settings(db)
-    allow_short_link = host == settings.site_domain.strip().lower()
+    short_link_hosts = resolve_short_link_hosts(settings)
+    allow_short_link = host in short_link_hosts
 
     if allow_short_link and request.method in {"GET", "HEAD"}:
         code = extract_short_code(path, settings)

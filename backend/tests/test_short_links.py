@@ -50,6 +50,62 @@ def test_redirect_short_link_and_hits(client: "SimpleClient") -> None:
     assert records[0]["hits"] == 1
 
 
+def test_redirect_short_link_with_admin_prefix(client: "SimpleClient") -> None:
+    update = client.put(
+        "/api/settings",
+        data={
+            "site_domain": "yet.la",
+            "short_code_length": "6",
+            "short_link_path": "/admin/",
+            "logo_url": "https://img.example.com/logo.png",
+            "icon_url": "https://img.example.com/icon.png",
+        },
+        auth=ADMIN_AUTH,
+    )
+    assert update.status_code == 200
+
+    create = client.post(
+        "/api/links",
+        json={"target_url": "https://example.org/landing", "code": "promo"},
+        auth=ADMIN_AUTH,
+    )
+    assert create.status_code == 201
+
+    redirect = client.get(
+        "/admin/promo",
+        headers={"host": "yet.la"},
+        follow_redirects=False,
+    )
+    assert redirect.status_code == 302
+    assert redirect.headers["location"] == "https://example.org/landing"
+
+
+def test_short_link_redirect_handles_www_host(client: "SimpleClient") -> None:
+    client.post(
+        "/api/links",
+        json={"target_url": "https://example.net/home", "code": "promo"},
+        auth=ADMIN_AUTH,
+    )
+
+    client.post(
+        "/api/subdomains",
+        json={
+            "host": "www.yet.la",
+            "target_url": "https://yet.la/admin",
+            "code": 302,
+        },
+        auth=ADMIN_AUTH,
+    )
+
+    redirect = client.get(
+        "/promo",
+        headers={"host": "www.yet.la"},
+        follow_redirects=False,
+    )
+    assert redirect.status_code == 302
+    assert redirect.headers["location"] == "https://example.net/home"
+
+
 def test_redirect_short_link_not_found(client: "SimpleClient") -> None:
     response = client.get("/missing", headers={"host": "yet.la"}, follow_redirects=False)
     assert response.status_code == 404
