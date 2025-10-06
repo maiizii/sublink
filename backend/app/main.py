@@ -996,6 +996,8 @@ def catch_all(
     if "://" in fallback_domain:
         fallback_domain = fallback_domain.split("://", 1)[1]
     fallback_domain = fallback_domain.strip("/") or DEFAULT_SITE_DOMAIN
+    if "/" in fallback_domain:
+        fallback_domain = fallback_domain.split("/", 1)[0]
     fallback_url = f"https://{fallback_domain}"
 
     if allow_short_link and request.method in {"GET", "HEAD"}:
