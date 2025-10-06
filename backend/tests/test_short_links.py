@@ -165,6 +165,39 @@ def test_short_links_are_scoped_by_user(client: "SimpleClient") -> None:
     assert admin_codes == {"admin-link", "alice"}
 
 
+def test_short_link_precedence_over_subdomain_redirect(
+    client: "SimpleClient",
+) -> None:
+    redirect_response = client.post(
+        "/api/subdomains",
+        json={
+            "host": "yet.la",
+            "target_url": "https://portal.example.com/admin",
+            "code": 302,
+        },
+        auth=ADMIN_AUTH,
+    )
+    assert redirect_response.status_code == 201
+
+    client.post(
+        "/api/links",
+        json={"target_url": "https://example.com/home", "code": "portal"},
+        auth=ADMIN_AUTH,
+    )
+
+    short_redirect = client.get(
+        "/portal",
+        headers={"host": "yet.la"},
+        follow_redirects=False,
+    )
+    assert short_redirect.status_code == 302
+    assert short_redirect.headers["location"] == "https://example.com/home"
+
+    homepage = client.get("/", headers={"host": "yet.la"}, follow_redirects=False)
+    assert homepage.status_code == 302
+    assert homepage.headers["location"].startswith("https://portal.example.com/admin")
+
+
 def test_non_admin_cannot_modify_other_users_links(client: "SimpleClient") -> None:
     admin_link = client.post(
         "/api/links",

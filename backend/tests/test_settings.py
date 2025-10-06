@@ -49,3 +49,27 @@ def test_update_settings_affects_short_links(client: "SimpleClient") -> None:
 
     missing = client.get("/jump", headers={"host": "example.com"}, follow_redirects=False)
     assert missing.status_code == 404
+
+
+def test_update_settings_via_htmx_returns_partial(client: "SimpleClient") -> None:
+    payload = {
+        "site_domain": "yet.la",
+        "short_code_length": "6",
+        "short_link_path": "/a/",
+        "logo_url": "https://cdn.example.com/logo-alt.png",
+        "icon_url": "https://cdn.example.com/icon-alt.png",
+    }
+
+    response = client.put(
+        "/api/settings",
+        data=payload,
+        headers={"hx-request": "true"},
+        auth=(ADMIN_USERNAME, ADMIN_PASSWORD),
+        follow_redirects=False,
+    )
+
+    assert response.status_code == 200
+    assert response.headers.get("hx-trigger") == "settings-updated"
+    assert "站点设置已更新" in response.text
+    assert "id=\"site-settings-card\"" in response.text
+    assert "value=\"/a/\"" in response.text
