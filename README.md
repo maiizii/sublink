@@ -3,6 +3,8 @@
 自托管的 yet.la 域名跳转管理平台，提供受 HTTP Basic 保护的管理后台与 API，用于维护子域名路由与短链接。Cloudflare 负责 DNS 与 TLS
 终止，Nginx 统一接受公网流量并转发到 FastAPI 后端。
 
+> 当前版本：**v1.10.6** —— 新增管理员设置页面，所有短链规则与品牌信息均持久化到数据库并可在后台界面动态调整。
+
 ## 目录
 
 - [本仓库包含什么？](#本仓库包含什么)
@@ -59,15 +61,13 @@
 $ git clone git@github.com:your-org/yetla.git
 $ cd yetla
 
-# 2. 准备环境变量
-$ cp .env.example .env
-$ vi .env   # 修改管理员用户名与密码
-
-# 3. 启动容器（首次部署建议重新构建镜像）
+# 2. 启动容器（首次部署建议重新构建镜像）
 $ docker compose up -d --build
 ```
 
 Nginx 默认监听 `80/443`，HTTP 请求统一 301 跳转至 HTTPS 并转发至后端 `backend:8000`。
+
+启动完成后，可使用默认管理员账号 `admin/admin` 登录 `https://<你的域名>/admin`，并在「设置」页更新基础域名、短链默认长度、路径前缀以及 Logo/Icon。所有配置会持久化到数据库，后续无需维护额外的 `.env` 文件。
 
 ## 一键命令
 
@@ -246,13 +246,14 @@ server {
 ### 管理后台
 
 - 入口：`https://<你的域名>/admin`
-- 认证：支持登录页表单或 HTTP Basic，两者都会将身份信息写入服务器端会话；默认凭据来自 `.env` 的 `ADMIN_USER` / `ADMIN_PASS`。
-- 功能：通过 HTMX 调用 `/api/links`、`/api/subdomains` 与 `/api/users` 完成 CRUD，并提供「修改密码」入口；界面组件在移动端下自动折叠为单列视图，便于手机端运维。
+- 认证：支持登录页表单或 HTTP Basic，两者都会将身份信息写入服务器端会话；默认凭据为 `admin/admin`（可通过环境变量覆盖或在后台修改）。
+- 功能：通过 HTMX 调用 `/api/links`、`/api/subdomains` 与 `/api/users` 完成 CRUD，并提供「修改密码」「设置」入口；界面组件在移动端下自动折叠为单列视图，便于手机端运维。
+- 设置页：管理员可调整基础域名、短链默认长度、路径前缀以及站点的 Logo/Icon，所有变更即时写入数据库并影响前端展示与访问逻辑。
 
 ### 访客访问
 
 - `https://yet.la/`：根据子域匹配结果返回重定向或 404 文本。
-- `https://yet.la/<code>`：短链接入口，命中后累积访问次数。
+- `https://yet.la/<code>`（或自定义路径前缀，如 `/r/<code>`）：短链接入口，命中后累积访问次数。
 
 ## API 说明与示例 curl
 
@@ -274,6 +275,8 @@ server {
 | POST | `/api/users` | 创建用户（支持设置管理员角色） | 需要管理员权限 | 201 / 409 |
 | PUT | `/api/users/{id}` | 更新用户资料与密码 | 需要管理员权限 | 200 / 400 / 404 / 409 |
 | DELETE | `/api/users/{id}` | 删除用户（至少保留一名管理员） | 需要管理员权限 | 204 / 400 / 404 |
+| GET | `/api/settings` | 读取站点设置 | 需要管理员权限 | 200 |
+| PUT/POST | `/api/settings` | 更新站点设置 | 需要管理员权限 | 200 |
 | POST | `/api/users/me/password` | 当前登录用户修改密码 | 需要登录 | 204 / 400 / 404 |
 | GET | `/{code}` | 短链接跳转并累积访问量 | 无 | 302 / 404 |
 | ANY | `/{path}` | 根据 `Host` 匹配子域跳转，未命中则返回 404 文本 | 无 | 30x / 404 |
@@ -312,14 +315,17 @@ curl -sk -u admin:changeme \
 
 ## 环境变量
 
-参考 [`.env.example`](.env.example) 并根据需求覆盖：
+核心站点配置（基础域名、短链路径、Logo/Icon、默认长度）已持久化到数据库，并可在后台「设置」页面实时调整。以下环境变量仅在首次启动或批量部署时生效，可按需覆盖默认值：
 
 | 变量名 | 说明 |
 | --- | --- |
-| `ADMIN_USER` | 管理后台与 API 的初始管理员用户名（首次启动会同步创建用户记录）。 |
-| `ADMIN_PASS` | 管理后台与 API 的初始管理员密码。 |
-| `BASE_DOMAIN` | 系统管理的基础域名，例如 `yet.la`。设置后仅允许该域名下的短链入口。 |
-| `SHORT_CODE_LEN` | 自动生成短链接编码的默认长度（默认 `6`）。 |
+| `ADMIN_USER` | 初始管理员用户名（默认 `admin`，启动后会写入数据库）。 |
+| `ADMIN_PASS` | 初始管理员密码（默认 `admin`，建议首登后修改）。 |
+| `BASE_DOMAIN` | （可选）首次初始化时的基础域名，例如 `yet.la`，后续请在后台设置页修改。 |
+| `SHORT_CODE_LEN` | （可选）首次初始化时的短链默认长度，后台设置页可随时调整。 |
+| `SHORT_LINK_PATH` | （可选）首次初始化时的短链路径前缀，例如 `/` 或 `/r/`。 |
+| `SITE_LOGO_URL` | （可选）首次初始化时的站点 Logo 地址。 |
+| `SITE_ICON_URL` | （可选）首次初始化时的站点 Icon 地址。 |
 | `DATABASE_URL` | SQLAlchemy 兼容的数据库连接串，默认为 `sqlite:////data/data.db`。可指向外部 PostgreSQL/MySQL。 |
 | `SESSION_SECRET` | 管理后台的服务器端会话密钥，默认回退为 `ADMIN_PASS`。生产环境务必覆盖。 |
 

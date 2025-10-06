@@ -5,6 +5,14 @@ from datetime import datetime
 
 from pydantic import BaseModel, Field, ValidationInfo, field_validator
 
+from .models import DEFAULT_ICON_URL, DEFAULT_LOGO_URL
+from .settings_service import (
+    normalize_asset_url,
+    normalize_short_code_length,
+    normalize_short_link_path,
+    normalize_site_domain,
+)
+
 
 class SubdomainRedirectBase(BaseModel):
     host: str = Field(..., description="例如 api.yet.la")
@@ -157,4 +165,47 @@ class PasswordChange(BaseModel):
         if new_password is not None and value != new_password:
             raise ValueError("两次输入的密码不一致")
         return value
+
+
+class SiteSettingsBase(BaseModel):
+    site_domain: str = Field(..., description="基础域名，例如 yet.la")
+    short_code_length: int = Field(..., ge=3, le=64, description="短链默认长度")
+    short_link_path: str = Field(..., description="短链路径前缀，例如 / 或 /r/")
+    logo_url: str = Field(..., description="LOGO 图片地址")
+    icon_url: str = Field(..., description="网站 ICON 图片地址")
+
+    @field_validator("site_domain")
+    @classmethod
+    def _normalize_domain(cls, value: str) -> str:
+        return normalize_site_domain(value)
+
+    @field_validator("short_code_length")
+    @classmethod
+    def _normalize_length(cls, value: int) -> int:
+        return normalize_short_code_length(value)
+
+    @field_validator("short_link_path")
+    @classmethod
+    def _normalize_path(cls, value: str) -> str:
+        return normalize_short_link_path(value)
+
+    @field_validator("logo_url")
+    @classmethod
+    def _normalize_logo(cls, value: str) -> str:
+        return normalize_asset_url(value, DEFAULT_LOGO_URL)
+
+    @field_validator("icon_url")
+    @classmethod
+    def _normalize_icon(cls, value: str) -> str:
+        return normalize_asset_url(value, DEFAULT_ICON_URL)
+
+
+class SiteSettings(SiteSettingsBase):
+    updated_at: datetime | None = Field(default=None, description="最近更新时间")
+
+    model_config = {"from_attributes": True}
+
+
+class SiteSettingsUpdate(SiteSettingsBase):
+    pass
 

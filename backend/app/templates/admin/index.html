@@ -47,6 +47,13 @@
           ({{ users|length }})
         </span>
       </a>
+      <a
+        href="?tab=settings"
+        class="theme-tab {% if active_tab == 'settings' %}is-active{% endif %}"
+      >
+        <span class="theme-tab__dot"></span>
+        设置
+      </a>
       {% endif %}
     </nav>
     <div class="theme-shell__body">
@@ -229,7 +236,7 @@
           </div>
         </section>
       </div>
-      {% else %}
+      {% elif active_tab == 'users' %}
       <div class="theme-stack">
         <section class="theme-card">
           <div class="theme-card__header">
@@ -344,6 +351,10 @@
             {% include "admin/partials/user_table.html" %}
           </div>
         </section>
+      </div>
+      {% elif active_tab == 'settings' %}
+      <div class="theme-stack">
+        {% include "admin/partials/settings_card.html" %}
       </div>
       {% endif %}
     </div>
