@@ -112,6 +112,12 @@ def test_redirect_short_link_not_found(client: "SimpleClient") -> None:
     assert response.headers["location"] == "https://yet.la"
 
 
+def test_root_request_returns_not_found(client: "SimpleClient") -> None:
+    response = client.get("/", headers={"host": "yet.la"}, follow_redirects=False)
+    assert response.status_code == 404
+    assert response.text == "Not Found"
+
+
 def test_create_short_link_via_htmx_form(client: "SimpleClient") -> None:
     response = client.post(
         "/api/links",

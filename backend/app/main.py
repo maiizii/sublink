@@ -1012,4 +1012,7 @@ def catch_all(
         )
         return RedirectResponse(destination, status_code=redirect.code)
 
+    if fallback_domain == host and not path.strip("/"):
+        return PlainTextResponse("Not Found", status_code=status.HTTP_404_NOT_FOUND)
+
     return RedirectResponse(fallback_url, status_code=status.HTTP_302_FOUND)
