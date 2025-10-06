@@ -116,6 +116,35 @@
     }
   }
 
+  function handleResponseRedirect(response) {
+    if (!response || typeof response.headers?.get !== "function") {
+      return false;
+    }
+
+    const redirectHeader = response.headers.get("HX-Redirect");
+    if (redirectHeader) {
+      const trimmed = redirectHeader.trim();
+      if (trimmed) {
+        const destination = toAbsoluteUrl(trimmed);
+        if (destination) {
+          window.location.href = destination;
+          return true;
+        }
+      }
+    }
+
+    const refreshHeader = response.headers.get("HX-Refresh");
+    if (refreshHeader) {
+      const normalized = refreshHeader.trim().toLowerCase();
+      if (!normalized || normalized === "true" || normalized === "refresh") {
+        window.location.reload();
+        return true;
+      }
+    }
+
+    return false;
+  }
+
   async function fetchFragment(url, options) {
     const absoluteUrl = toAbsoluteUrl(url);
     const response = await fetch(
@@ -128,10 +157,13 @@
         response.headers.get("Location"),
       )
     ) {
-      return { response, text: "" };
+      return { response, text: "", redirected: true };
+    }
+    if (handleResponseRedirect(response)) {
+      return { response, text: "", redirected: true };
     }
     const text = await response.text();
-    return { response, text };
+    return { response, text, redirected: false };
   }
 
   function getRowRestoreUrl(row) {
@@ -170,10 +202,14 @@
     }
 
     try {
-      const { response, text } = await fetchFragment(url, {
+      const { response, text, redirected } = await fetchFragment(url, {
         method: "GET",
         headers: buildHeaders(),
       });
+
+      if (redirected) {
+        return;
+      }
 
       if (response.ok) {
         swapContent(row, text, "outerHTML");
@@ -255,13 +291,17 @@
     });
 
     try {
-      const { response, text } = await fetchFragment(targetUrl, {
+      const { response, text, redirected } = await fetchFragment(targetUrl, {
         method,
         headers: buildHeaders({
           "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
         }),
         body,
       });
+
+      if (redirected) {
+        return;
+      }
 
       if (target) {
         swapContent(target, text, swapStrategy);
@@ -359,10 +399,16 @@
     const countAnchor = document.getElementById("user-count");
     if (countAnchor) {
       try {
-        const { response, text } = await fetchFragment("/admin/users/count", {
-          method: "GET",
-          headers: buildHeaders(),
-        });
+        const { response, text, redirected } = await fetchFragment(
+          "/admin/users/count",
+          {
+            method: "GET",
+            headers: buildHeaders(),
+          },
+        );
+        if (redirected) {
+          return;
+        }
         if (response.ok) {
           swapContent(countAnchor, text, "outerHTML");
         }
@@ -374,10 +420,16 @@
     const tableContainer = document.getElementById("users-table");
     if (tableContainer) {
       try {
-        const { response, text } = await fetchFragment("/admin/users/table", {
-          method: "GET",
-          headers: buildHeaders(),
-        });
+        const { response, text, redirected } = await fetchFragment(
+          "/admin/users/table",
+          {
+            method: "GET",
+            headers: buildHeaders(),
+          },
+        );
+        if (redirected) {
+          return;
+        }
         if (response.ok) {
           swapContent(tableContainer, text, "innerHTML");
         }
@@ -391,10 +443,16 @@
     const countAnchor = document.getElementById("short-link-count");
     if (countAnchor) {
       try {
-        const { response, text } = await fetchFragment("/admin/links/count", {
-          method: "GET",
-          headers: buildHeaders(),
-        });
+        const { response, text, redirected } = await fetchFragment(
+          "/admin/links/count",
+          {
+            method: "GET",
+            headers: buildHeaders(),
+          },
+        );
+        if (redirected) {
+          return;
+        }
         if (response.ok) {
           swapContent(countAnchor, text, "outerHTML");
         }
@@ -406,10 +464,16 @@
     const tableContainer = document.getElementById("links-table");
     if (tableContainer) {
       try {
-        const { response, text } = await fetchFragment("/admin/links/table", {
-          method: "GET",
-          headers: buildHeaders(),
-        });
+        const { response, text, redirected } = await fetchFragment(
+          "/admin/links/table",
+          {
+            method: "GET",
+            headers: buildHeaders(),
+          },
+        );
+        if (redirected) {
+          return;
+        }
         if (response.ok) {
           swapContent(tableContainer, text, "innerHTML");
         }
@@ -423,10 +487,16 @@
     const countAnchor = document.getElementById("subdomain-count");
     if (countAnchor) {
       try {
-        const { response, text } = await fetchFragment("/admin/subdomains/count", {
-          method: "GET",
-          headers: buildHeaders(),
-        });
+        const { response, text, redirected } = await fetchFragment(
+          "/admin/subdomains/count",
+          {
+            method: "GET",
+            headers: buildHeaders(),
+          },
+        );
+        if (redirected) {
+          return;
+        }
         if (response.ok) {
           swapContent(countAnchor, text, "outerHTML");
         }
@@ -438,10 +508,16 @@
     const tableContainer = document.getElementById("subdomains-table");
     if (tableContainer) {
       try {
-        const { response, text } = await fetchFragment("/admin/subdomains/table", {
-          method: "GET",
-          headers: buildHeaders(),
-        });
+        const { response, text, redirected } = await fetchFragment(
+          "/admin/subdomains/table",
+          {
+            method: "GET",
+            headers: buildHeaders(),
+          },
+        );
+        if (redirected) {
+          return;
+        }
         if (response.ok) {
           swapContent(tableContainer, text, "innerHTML");
         }
@@ -1006,10 +1082,14 @@
       const target = resolveTarget(trigger, targetSelector);
 
       try {
-        const { response, text } = await fetchFragment(url, {
+        const { response, text, redirected } = await fetchFragment(url, {
           method: isDelete ? "DELETE" : "GET",
           headers: buildHeaders(),
         });
+
+        if (redirected) {
+          return;
+        }
 
         if (target) {
           swapContent(target, text, swapStrategy);
