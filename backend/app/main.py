@@ -6,7 +6,7 @@ import string
 
 from pathlib import Path
 from typing import Any
-from urllib.parse import parse_qsl
+from urllib.parse import parse_qsl, urlsplit
 
 from fastapi import Depends, FastAPI, HTTPException, Request, Response, status
 from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse, RedirectResponse
@@ -154,17 +154,31 @@ def _generate_unique_code(db: Session, length: int) -> str:
     raise HTTPException(status.HTTP_409_CONFLICT, detail="无法生成唯一的短链接编码")
 
 
-def _compose_redirect_target(base_url: str, path: str, query: str) -> str:
+def _compose_redirect_target(
+    base_url: str, path: str, query: str, *, include_path: bool = True
+) -> str:
     """组合目标 URL，将当前请求的 path/query 透传给上游。"""
 
     destination = base_url.rstrip("/")
-    normalized_path = path.lstrip("/")
-    if normalized_path:
-        destination = f"{destination}/{normalized_path}"
+    if include_path:
+        normalized_path = path.lstrip("/")
+        if normalized_path:
+            destination = f"{destination}/{normalized_path}"
     if query:
         separator = "&" if "?" in destination else "?"
         destination = f"{destination}{separator}{query}"
     return destination
+
+
+def _extract_host_from_url(url: str) -> str:
+    """从 URL 中提取主机名，用于判断是否需要透传路径。"""
+
+    normalized = url.strip()
+    if not normalized:
+        return ""
+    parsed = urlsplit(normalized if "://" in normalized else f"https://{normalized}")
+    host = parsed.netloc or parsed.path.split("/", 1)[0]
+    return host.strip().lower()
 
 
 def _decode_urlencoded_form(body: bytes, charset: str = "utf-8") -> dict[str, Any]:
@@ -1003,12 +1017,20 @@ def catch_all(
 
     redirect = db.scalar(select(SubdomainRedirect).where(SubdomainRedirect.host == host))
     if redirect is not None:
+        target_host = _extract_host_from_url(redirect.target_url)
+        if target_host == host and path.strip("/"):
+            return RedirectResponse(fallback_url, status_code=status.HTTP_302_FOUND)
+
         redirect.hits += 1
         db.add(redirect)
         _commit_session(db)
 
+        include_path = target_host != host and target_host != ""
         destination = _compose_redirect_target(
-            redirect.target_url, path=path, query=request.url.query or ""
+            redirect.target_url,
+            path=path,
+            query=request.url.query or "",
+            include_path=include_path,
         )
         return RedirectResponse(destination, status_code=redirect.code)
 
