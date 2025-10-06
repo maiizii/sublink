@@ -112,6 +112,41 @@ def test_redirect_short_link_not_found(client: "SimpleClient") -> None:
     assert response.headers["location"] == "https://yet.la"
 
 
+def test_missing_short_link_with_path_avoids_subdomain_loop(
+    client: "SimpleClient",
+) -> None:
+    update = client.put(
+        "/api/settings",
+        data={
+            "site_domain": "https://www.example.com",
+            "short_code_length": "6",
+            "short_link_path": "/g/",
+            "logo_url": "https://img.example.com/logo.png",
+            "icon_url": "https://img.example.com/icon.png",
+        },
+        auth=ADMIN_AUTH,
+    )
+    assert update.status_code == 200
+
+    client.post(
+        "/api/subdomains",
+        json={
+            "host": "www.example.com",
+            "target_url": "https://www.example.com/admin",
+            "code": 302,
+        },
+        auth=ADMIN_AUTH,
+    )
+
+    response = client.get(
+        "/gfsdf/gfd",
+        headers={"host": "www.example.com"},
+        follow_redirects=False,
+    )
+    assert response.status_code == 302
+    assert response.headers["location"] == "https://www.example.com"
+
+
 def test_root_request_returns_not_found(client: "SimpleClient") -> None:
     response = client.get("/", headers={"host": "yet.la"}, follow_redirects=False)
     assert response.status_code == 404
