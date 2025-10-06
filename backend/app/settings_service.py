@@ -49,6 +49,22 @@ def normalize_short_link_path(value: str | None) -> str:
     return normalized
 
 
+def resolve_short_link_hosts(settings: SiteSettings) -> set[str]:
+    """Return hostnames that should trigger short link lookups."""
+
+    canonical = (settings.site_domain or "").strip().lower()
+    if not canonical:
+        return set()
+
+    hosts = {canonical}
+    if canonical.startswith("www."):
+        hosts.add(canonical[4:])
+    else:
+        hosts.add(f"www.{canonical}")
+
+    return {host for host in hosts if host}
+
+
 def normalize_short_code_length(value: int | None) -> int:
     length = value or DEFAULT_SHORT_CODE_LENGTH
     if length < _MIN_SHORT_CODE_LENGTH:
