@@ -41,3 +41,19 @@ def test_fallback_redirect_uses_request_host_for_short_links(
     response = client.get("/missing", headers={"host": "example.com"}, follow_redirects=False)
     assert response.status_code == 302
     assert response.headers["location"] == "https://example.com"
+
+
+def test_missing_short_link_with_nested_path_redirects_to_root(
+    client: "SimpleClient",
+) -> None:
+    settings = client.get("/api/settings", auth=ADMIN_AUTH).json()
+    settings["site_domain"] = "https://yet.la"
+    client.put("/api/settings", json=settings, auth=ADMIN_AUTH)
+
+    response = client.get(
+        "/missing/nested",
+        headers={"host": "yet.la"},
+        follow_redirects=False,
+    )
+    assert response.status_code == 302
+    assert response.headers["location"] == "https://yet.la"
