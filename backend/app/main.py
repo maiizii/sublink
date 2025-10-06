@@ -998,7 +998,13 @@ def catch_all(
     fallback_domain = fallback_domain.strip("/") or DEFAULT_SITE_DOMAIN
     if "/" in fallback_domain:
         fallback_domain = fallback_domain.split("/", 1)[0]
-    fallback_url = f"https://{fallback_domain}"
+
+    # 对于短链域名，直接跳转到当前请求主机的根目录，避免跨域再次触发
+    # 子域规则导致的重定向循环。
+    if allow_short_link:
+        fallback_url = f"https://{host}"
+    else:
+        fallback_url = f"https://{fallback_domain}"
 
     if allow_short_link and request.method in {"GET", "HEAD"}:
         code = extract_short_code(path, settings)
