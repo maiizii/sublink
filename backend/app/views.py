@@ -1,9 +1,9 @@
 """HTML views for the administrative dashboard."""
 from __future__ import annotations
 
-import os
 import secrets
 import string
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -21,14 +21,9 @@ from .deps import (
     validate_credentials,
 )
 from .session import clear_session, get_session
-from .models import ShortLink, SubdomainRedirect, User
+from .models import ShortLink, SiteSettings, SubdomainRedirect, User
+from .settings_service import build_short_link_prefix, get_site_settings
 
-DEFAULT_BASE_DOMAIN = "yet.la"
-SHORT_CODE_LENGTH = int(os.getenv("SHORT_CODE_LEN", "6"))
-ENV_BASE_DOMAIN = os.getenv("BASE_DOMAIN", "").strip().lower()
-EFFECTIVE_BASE_DOMAIN = ENV_BASE_DOMAIN or DEFAULT_BASE_DOMAIN
-BASE_URL = f"https://{EFFECTIVE_BASE_DOMAIN}".rstrip("/")
-SHORT_LINK_PREFIX = f"{BASE_URL}/"
 SUBDOMAIN_CODE_OPTIONS = [302, 301]
 
 TEMPLATE_DIR = Path(__file__).resolve().parent / "templates"
@@ -72,7 +67,7 @@ def _load_users(db: Session) -> list[User]:
     )
 
 
-def _generate_short_link_suggestion(db: Session, length: int = SHORT_CODE_LENGTH) -> str:
+def _generate_short_link_suggestion(db: Session, length: int) -> str:
     """Generate a random short link code suggestion that does not clash with existing ones."""
 
     alphabet = string.ascii_letters + string.digits
@@ -85,16 +80,32 @@ def _generate_short_link_suggestion(db: Session, length: int = SHORT_CODE_LENGTH
     return "".join(secrets.choice(alphabet) for _ in range(length))
 
 
-def _base_context(request: Request, user: User | None = None) -> dict[str, Any]:
+def _base_context(
+    request: Request, settings: SiteSettings, user: User | None = None
+) -> dict[str, Any]:
+    base_domain = settings.site_domain.strip().strip("/") or settings.site_domain
+    base_url = f"https://{base_domain}".rstrip("/")
+    short_link_prefix = build_short_link_prefix(settings)
     return {
         "request": request,
-        "base_domain": EFFECTIVE_BASE_DOMAIN,
-        "base_url": BASE_URL,
-        "short_link_prefix": SHORT_LINK_PREFIX,
-        "short_code_length": SHORT_CODE_LENGTH,
+        "base_domain": base_domain,
+        "base_url": base_url,
+        "short_link_prefix": short_link_prefix,
+        "short_code_length": settings.short_code_length,
+        "site_settings": settings,
+        "current_year": datetime.utcnow().year,
+        "settings_feedback_html": None,
         "show_logout_button": True,
         "current_user": user,
     }
+
+
+def _context_with_settings(
+    request: Request, db: Session, user: User | None = None
+) -> tuple[dict[str, Any], SiteSettings]:
+    settings = get_site_settings(db)
+    context = _base_context(request, settings, user)
+    return context, settings
 
 
 def _ensure_link_access(short_link: ShortLink, user: User) -> None:
@@ -122,25 +133,35 @@ def admin_dashboard(
 
     available_tabs = {"links", "subdomains"}
     if current_user.is_admin:
-        available_tabs.add("users")
+        available_tabs.update({"users", "settings"})
     active_tab = tab if tab in available_tabs else "links"
 
     short_links = _load_short_links(db, current_user)
     subdomains = _load_subdomains(db, current_user)
     users: list[User] = _load_users(db) if current_user.is_admin else []
 
-    context = _base_context(request, current_user)
+    context, settings = _context_with_settings(request, db, current_user)
     context.update(
         {
             "active_tab": active_tab,
             "short_links": short_links,
             "subdomains": subdomains,
             "users": users,
-            "short_code_suggestion": _generate_short_link_suggestion(db),
+            "short_code_suggestion": _generate_short_link_suggestion(
+                db, settings.short_code_length
+            ),
             "subdomain_code_options": SUBDOMAIN_CODE_OPTIONS,
             "show_user_column": current_user.is_admin,
+            "short_link_example": f"{context['short_link_prefix']}example",
         }
     )
+    if current_user.is_admin and active_tab == "settings":
+        if request.query_params.get("saved"):
+            context["settings_feedback_html"] = (
+                "<div class=\"rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700\">"
+                "站点设置已更新"
+                "</div>"
+            )
     return templates.TemplateResponse("admin/index.html", context)
 
 
@@ -159,6 +180,7 @@ def admin_logout(
 def admin_login_page(
     request: Request,
     redirect_to: str | None = Query(default=None, alias="next"),
+    db: Session = Depends(get_db),
 ) -> HTMLResponse:
     """Render the login page using the dashboard theme."""
 
@@ -167,7 +189,7 @@ def admin_login_page(
         target = _safe_redirect_target(redirect_to)
         return RedirectResponse(target, status_code=status.HTTP_303_SEE_OTHER)
 
-    context = _base_context(request)
+    context, _ = _context_with_settings(request, db)
     context.update(
         {
             "show_logout_button": False,
@@ -208,7 +230,7 @@ async def admin_login_submit(
         else:
             error = "登录失败"
 
-    context = _base_context(request)
+    context, _ = _context_with_settings(request, db)
     context.update(
         {
             "show_logout_button": False,
@@ -237,7 +259,7 @@ def short_link_count(
     """Return a small fragment containing the current short link count."""
 
     short_links = _load_short_links(db, current_user)
-    context = _base_context(request, current_user)
+    context, _ = _context_with_settings(request, db, current_user)
     context.update({"count": len(short_links)})
     return templates.TemplateResponse("admin/partials/link_count.html", context)
 
@@ -254,7 +276,7 @@ def short_link_table(
     """Return the short link table fragment for HTMX swaps."""
 
     short_links = _load_short_links(db, current_user)
-    context = _base_context(request, current_user)
+    context, _ = _context_with_settings(request, db, current_user)
     context.update({"short_links": short_links, "show_user_column": current_user.is_admin})
     return templates.TemplateResponse("admin/partials/link_table.html", context)
 
@@ -276,7 +298,7 @@ def short_link_row(
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="短链接不存在")
     _ensure_link_access(short_link, current_user)
 
-    context = _base_context(request, current_user)
+    context, _ = _context_with_settings(request, db, current_user)
     context.update({"item": short_link, "show_user_column": current_user.is_admin})
     return templates.TemplateResponse("admin/partials/link_row.html", context)
 
@@ -298,7 +320,7 @@ def short_link_edit_row(
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="短链接不存在")
     _ensure_link_access(short_link, current_user)
 
-    context = _base_context(request, current_user)
+    context, _ = _context_with_settings(request, db, current_user)
     context.update({"item": short_link, "show_user_column": current_user.is_admin})
     return templates.TemplateResponse("admin/partials/link_edit_row.html", context)
 
@@ -315,7 +337,7 @@ def subdomain_count(
     """Return the current subdomain redirect count fragment."""
 
     subdomains = _load_subdomains(db, current_user)
-    context = _base_context(request, current_user)
+    context, _ = _context_with_settings(request, db, current_user)
     context.update({"count": len(subdomains)})
     return templates.TemplateResponse("admin/partials/subdomain_count.html", context)
 
@@ -332,7 +354,7 @@ def subdomain_table(
     """Return the subdomain table fragment for HTMX swaps."""
 
     subdomains = _load_subdomains(db, current_user)
-    context = _base_context(request, current_user)
+    context, _ = _context_with_settings(request, db, current_user)
     context.update({"subdomains": subdomains, "show_user_column": current_user.is_admin})
     return templates.TemplateResponse("admin/partials/subdomain_table.html", context)
 
@@ -354,7 +376,7 @@ def subdomain_row(
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="子域跳转不存在")
     _ensure_subdomain_access(redirect, current_user)
 
-    context = _base_context(request, current_user)
+    context, _ = _context_with_settings(request, db, current_user)
     context.update({"item": redirect, "show_user_column": current_user.is_admin})
     return templates.TemplateResponse("admin/partials/subdomain_row.html", context)
 
@@ -376,7 +398,7 @@ def subdomain_edit_row(
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="子域跳转不存在")
     _ensure_subdomain_access(redirect, current_user)
 
-    context = _base_context(request, current_user)
+    context, _ = _context_with_settings(request, db, current_user)
     context.update(
         {
             "item": redirect,
@@ -399,7 +421,7 @@ def user_count(
     """Return the current user count fragment."""
 
     users = _load_users(db)
-    context = _base_context(request, admin)
+    context, _ = _context_with_settings(request, db, admin)
     context.update({"count": len(users)})
     return templates.TemplateResponse("admin/partials/user_count.html", context)
 
@@ -416,7 +438,7 @@ def user_table(
     """Render the user management table."""
 
     users = _load_users(db)
-    context = _base_context(request, admin)
+    context, _ = _context_with_settings(request, db, admin)
     context.update({"users": users})
     return templates.TemplateResponse("admin/partials/user_table.html", context)
 
@@ -437,7 +459,7 @@ def user_row(
     if user is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="用户不存在")
 
-    context = _base_context(request, admin)
+    context, _ = _context_with_settings(request, db, admin)
     context.update({"item": user})
     return templates.TemplateResponse("admin/partials/user_row.html", context)
 
@@ -458,7 +480,7 @@ def user_edit_row(
     if user is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="用户不存在")
 
-    context = _base_context(request, admin)
+    context, _ = _context_with_settings(request, db, admin)
     context.update({"item": user})
     return templates.TemplateResponse("admin/partials/user_edit_row.html", context)
 
@@ -467,9 +489,10 @@ def user_edit_row(
 def password_page(
     request: Request,
     current_user: User = Depends(require_authenticated_user),
+    db: Session = Depends(get_db),
 ) -> HTMLResponse:
     """Render the password change form for the current user."""
 
-    context = _base_context(request, current_user)
+    context, _ = _context_with_settings(request, db, current_user)
     context.update({"show_logout_button": True})
     return templates.TemplateResponse("admin/password.html", context)

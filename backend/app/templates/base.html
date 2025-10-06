@@ -3,8 +3,8 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>{% block title %}yet.la 短链子域管理后台{% endblock %}</title>
-    <link rel="icon" type="image/png" href="https://img.811777.xyz/i/2025/10/04/68e0a010486cf.png" />
+    <title>{% block title %}{{ site_settings.site_domain }} 短链子域管理后台{% endblock %}</title>
+    <link rel="icon" type="image/png" href="{{ site_settings.icon_url }}" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -1215,6 +1215,12 @@
         margin-right: auto;
       }
 
+      .theme-hint {
+        margin-top: 0.35rem;
+        font-size: 0.82rem;
+        color: var(--theme-muted);
+      }
+
       .theme-table {
         width: 100%;
         border-collapse: separate;
@@ -1690,16 +1696,16 @@
           <div class="theme-hero__heading">
             <div class="theme-hero__brand">
               <img
-                src="https://img.811777.xyz/i/2025/10/04/68e0a00e3ab35.png"
-                alt="yet.la 平台标识"
+                src="{{ site_settings.logo_url }}"
+                alt="{{ site_settings.site_domain }} 平台标识"
                 class="theme-hero__brand-logo"
               />
-              <span class="sr-only">yet.la Platform</span>
+              <span class="sr-only">{{ site_settings.site_domain }} Platform</span>
             </div>
             <div class="theme-hero__title-row">
               <h1 class="theme-hero__title">
                 <span class="theme-hero__title-text theme-hero__title-text--full"
-                  >yet.la 短链子域管理后台</span
+                  >{{ site_settings.site_domain }} 短链子域管理后台</span
                 >
                 <span class="theme-hero__title-text theme-hero__title-text--compact"
                   >短链子域管理后台</span
@@ -1783,6 +1789,6 @@
     <main class="theme-main">
       {% block content %}{% endblock %}
     </main>
-    <footer class="theme-footer">© 2025 yet.la</footer>
+    <footer class="theme-footer">© {{ current_year }} {{ site_settings.site_domain }}</footer>
   </body>
 </html>

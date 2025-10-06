@@ -22,6 +22,12 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship,
 
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:////data/data.db")
 
+DEFAULT_SITE_DOMAIN = "yet.la"
+DEFAULT_SHORT_CODE_LENGTH = 6
+DEFAULT_SHORT_LINK_PATH = "/"
+DEFAULT_LOGO_URL = "https://img.811777.xyz/i/2025/10/04/68e0a00e3ab35.png"
+DEFAULT_ICON_URL = "https://img.811777.xyz/i/2025/10/04/68e0a010486cf.png"
+
 
 def _ensure_sqlite_directory(database_url: str) -> None:
     """Ensure the parent directory for a SQLite database exists."""
@@ -62,6 +68,22 @@ engine = create_engine(
 )
 
 SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False, future=True)
+
+
+class SiteSettings(Base):
+    """站点配置，包含品牌与短链规则。"""
+
+    __tablename__ = "site_settings"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    site_domain: Mapped[str] = mapped_column(String(255), default=DEFAULT_SITE_DOMAIN, nullable=False)
+    short_code_length: Mapped[int] = mapped_column(Integer, default=DEFAULT_SHORT_CODE_LENGTH, nullable=False)
+    short_link_path: Mapped[str] = mapped_column(String(255), default=DEFAULT_SHORT_LINK_PATH, nullable=False)
+    logo_url: Mapped[str] = mapped_column(String(2048), default=DEFAULT_LOGO_URL, nullable=False)
+    icon_url: Mapped[str] = mapped_column(String(2048), default=DEFAULT_ICON_URL, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
+    )
 
 
 class User(Base):

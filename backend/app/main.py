@@ -1,7 +1,6 @@
 """FastAPI 应用，提供 yet.la 的短链接与子域跳转管理接口。"""
 from __future__ import annotations
 
-import os
 import secrets
 import string
 
@@ -26,6 +25,7 @@ from .deps import (
 from .models import (
     Base,
     ShortLink,
+    SiteSettings,
     SubdomainRedirect,
     User,
     ensure_subdomain_hits_column,
@@ -36,6 +36,8 @@ from .schemas import (
     ShortLink as ShortLinkSchema,
     ShortLinkCreate,
     ShortLinkUpdate,
+    SiteSettings as SiteSettingsSchema,
+    SiteSettingsUpdate,
     SubdomainRedirect as SubdomainRedirectSchema,
     SubdomainRedirectCreate,
     SubdomainRedirectUpdate,
@@ -48,10 +50,15 @@ from pydantic import ValidationError
 
 from .user_service import ensure_default_admin
 from .security import hash_password, verify_password
+from .settings_service import (
+    build_short_link_prefix,
+    ensure_default_settings,
+    extract_short_code,
+    get_site_settings,
+    update_site_settings,
+)
 
-SHORT_CODE_LEN = int(os.getenv("SHORT_CODE_LEN", "6"))
 MAX_CODE_ATTEMPTS = 10
-BASE_DOMAIN = os.getenv("BASE_DOMAIN", "").strip().lower()
 
 app = FastAPI(
     title="Yetla Redirect API",
@@ -86,6 +93,7 @@ def ensure_tables() -> None:
         Base.metadata.create_all(bind=engine)
         ensure_subdomain_hits_column()
         ensure_user_association_columns()
+        ensure_default_settings()
         ensure_default_admin()
     except SQLAlchemyError as exc:  # pragma: no cover - 依赖数据库环境
         raise RuntimeError("failed to initialize database schema") from exc
@@ -337,6 +345,20 @@ async def _parse_password_change_payload(request: Request) -> PasswordChange:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail=exc.errors()) from exc
 
 
+async def _parse_site_settings_payload(request: Request) -> SiteSettingsUpdate:
+    content_type = request.headers.get("content-type", "").lower()
+    data: dict[str, Any]
+    if content_type.startswith("application/json"):
+        data = await request.json()
+    else:
+        data = await _read_form_data(request, content_type)
+
+    try:
+        return SiteSettingsUpdate.model_validate(data)
+    except ValidationError as exc:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail=exc.errors()) from exc
+
+
 def _format_validation_errors(detail: Any) -> str:
     """将 Pydantic 错误信息转换为可读字符串。"""
 
@@ -393,6 +415,44 @@ def list_routes(db: Session = Depends(get_db)) -> list[SubdomainRedirect]:
     return list(redirects)
 
 
+@app.get("/api/settings", response_model=SiteSettingsSchema)
+def read_site_settings(
+    _admin: User = Depends(require_admin_user),
+    db: Session = Depends(get_db),
+) -> SiteSettings:
+    """返回当前站点设置（管理员限定）。"""
+
+    return get_site_settings(db)
+
+
+@app.api_route(
+    "/api/settings",
+    methods=["PUT", "POST"],
+    response_model=SiteSettingsSchema,
+)
+async def update_site_settings_endpoint(
+    request: Request,
+    response: Response,
+    payload: SiteSettingsUpdate = Depends(_parse_site_settings_payload),
+    _admin: User = Depends(require_admin_user),
+    db: Session = Depends(get_db),
+) -> SiteSettings | HTMLResponse:
+    """更新站点设置（管理员限定）。"""
+
+    settings = update_site_settings(db, **payload.model_dump())
+    hx_request = request.headers.get("hx-request") == "true"
+    if hx_request:
+        redirect_url = "/admin?tab=settings&saved=1"
+        return HTMLResponse(
+            "",
+            status_code=status.HTTP_204_NO_CONTENT,
+            headers={"HX-Redirect": redirect_url},
+        )
+
+    response.headers["HX-Trigger"] = "settings-updated"
+    return settings
+
+
 @app.get("/api/links", response_model=list[ShortLinkSchema])
 def list_short_links(
     current_user: User = Depends(require_authenticated_user),
@@ -423,13 +483,14 @@ async def create_short_link(
 ) -> ShortLink | HTMLResponse:
     """创建短链接，code 可空自动生成。"""
 
+    settings = get_site_settings(db)
     code = payload.code
     if code:
         exists = db.scalar(select(ShortLink).where(ShortLink.code == code))
         if exists:
             raise HTTPException(status.HTTP_409_CONFLICT, detail="短链接编码已存在")
     else:
-        code = _generate_unique_code(db, SHORT_CODE_LEN)
+        code = _generate_unique_code(db, settings.short_code_length)
 
     short_link = ShortLink(
         code=code, target_url=payload.target_url, user_id=current_user.id
@@ -907,11 +968,12 @@ def catch_all(
         )
         return RedirectResponse(destination, status_code=redirect.code)
 
-    allow_short_link = not BASE_DOMAIN or host == BASE_DOMAIN
+    settings = get_site_settings(db)
+    allow_short_link = host == settings.site_domain.strip().lower()
 
     if allow_short_link and request.method in {"GET", "HEAD"}:
-        code = path.strip("/")
-        if code and "/" not in code:
+        code = extract_short_code(path, settings)
+        if code:
             short_link = db.scalar(select(ShortLink).where(ShortLink.code == code))
             if short_link is None:
                 raise HTTPException(status.HTTP_404_NOT_FOUND, detail="短链接不存在")
