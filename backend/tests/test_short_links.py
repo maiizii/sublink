@@ -108,8 +108,8 @@ def test_short_link_redirect_handles_www_host(client: "SimpleClient") -> None:
 
 def test_redirect_short_link_not_found(client: "SimpleClient") -> None:
     response = client.get("/missing", headers={"host": "yet.la"}, follow_redirects=False)
-    assert response.status_code == 404
-    assert response.json() == {"error": "短链接不存在"}
+    assert response.status_code == 302
+    assert response.headers["location"] == "https://yet.la"
 
 
 def test_create_short_link_via_htmx_form(client: "SimpleClient") -> None:
