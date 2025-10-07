@@ -3,7 +3,7 @@
   class="theme-table__row"
   {% if oob %}hx-swap-oob="outerHTML"{% endif %}
 >
-  <td class="theme-table__cell theme-table__cell--wrap">
+  <td class="theme-table__cell theme-table__cell--wrap theme-table__cell--summary">
     {{ item.username }}
   </td>
   <td class="theme-table__cell theme-table__cell--muted">{{ item.email }}</td>
@@ -17,7 +17,7 @@
   <td class="theme-table__cell theme-table__cell--muted">
     {{ item.created_at.strftime('%Y-%m-%d %H:%M') if item.created_at else '-' }}
   </td>
-  <td class="theme-table__cell theme-table__cell--right">
+  <td class="theme-table__cell theme-table__cell--right theme-table__cell--actions">
     <div class="theme-table__actions theme-table__actions--desktop">
       <button
         type="button"
@@ -50,6 +50,12 @@
         <span class="sr-only">展开操作菜单</span>
       </summary>
       <div class="theme-table__details-panel">
+        <div class="theme-table__details-summary">
+          <span class="theme-table__details-title">用户名</span>
+          <div class="theme-table__details-primary">
+            <span class="theme-table__details-meta">{{ item.username }}</span>
+          </div>
+        </div>
         <dl class="theme-table__details-list">
           <div class="theme-table__details-item">
             <dt>邮箱</dt>
