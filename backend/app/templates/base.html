@@ -198,9 +198,9 @@
 
       .theme-hero__top {
         display: flex;
-        align-items: center;
+        align-items: flex-start;
         justify-content: space-between;
-        gap: 1rem;
+        gap: 1.25rem;
         flex-wrap: wrap;
         margin-bottom: 1rem;
       }
@@ -211,6 +211,10 @@
         gap: 0.75rem;
         flex-wrap: wrap;
         justify-content: flex-end;
+      }
+
+      .theme-hero__actions:empty {
+        display: none;
       }
 
       .theme-theme-switch {
@@ -351,6 +355,14 @@
         margin-bottom: 0.35rem;
       }
 
+      .theme-hero__brand-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+        width: 100%;
+      }
+
       .theme-hero__brand {
         display: inline-flex;
         align-items: center;
@@ -365,7 +377,8 @@
       .theme-hero__heading {
         display: flex;
         flex-direction: column;
-        gap: 0.5rem;
+        gap: 0.75rem;
+        flex: 1 1 auto;
       }
 
       .theme-hero__brand-logo {
@@ -382,10 +395,16 @@
         margin: 0;
       }
 
+      .theme-hero__title {
+        text-align: center;
+      }
+
       .theme-hero__title-row {
         display: flex;
         align-items: center;
+        justify-content: center;
         gap: 0.75rem;
+        text-align: center;
       }
 
       .theme-hero__title-row .theme-hero__title {
@@ -833,15 +852,17 @@
       }
 
       .theme-form--login {
-        align-items: stretch;
+        width: 100%;
+        align-items: center;
         text-align: left;
         gap: 1.25rem;
       }
 
       .theme-form--login .theme-field {
-        width: min(100%, 14.5rem);
-        margin-left: auto;
-        margin-right: auto;
+        width: 100%;
+        max-width: 100%;
+        margin-left: 0;
+        margin-right: 0;
         align-items: stretch;
       }
 
@@ -864,9 +885,10 @@
       }
 
       .theme-form--login .theme-form__footer {
-        width: min(100%, 14.5rem);
-        margin-left: auto;
-        margin-right: auto;
+        width: 100%;
+        max-width: 100%;
+        margin-left: 0;
+        margin-right: 0;
         align-items: stretch;
       }
 
@@ -1467,7 +1489,7 @@
 
         .theme-hero__top {
           flex-direction: column;
-          align-items: flex-start;
+          align-items: stretch;
           gap: 1rem;
         }
 
@@ -1476,11 +1498,6 @@
           flex-direction: column;
           align-items: stretch;
           gap: 0.75rem;
-        }
-
-        .theme-theme-switch {
-          width: 100%;
-          justify-content: center;
         }
 
         .theme-hero__actions .theme-button {
@@ -1571,6 +1588,10 @@
           text-align: center;
         }
 
+        .theme-hero__brand-row {
+          width: 100%;
+        }
+
         .theme-hero__title-row {
           width: 100%;
           justify-content: center;
@@ -1598,16 +1619,12 @@
         }
 
         .theme-hero__brand {
-          margin-left: auto;
-          margin-right: auto;
+          margin-left: 0;
+          margin-right: 0;
         }
 
         .theme-hero__actions {
           gap: 0.5rem;
-        }
-
-        .theme-hero__actions .theme-theme-switch {
-          display: none;
         }
 
         .theme-hero__subtitle {
@@ -1730,21 +1747,48 @@
       <div class="theme-hero__inner">
         <div class="theme-hero__top">
           <div class="theme-hero__heading">
-            <div class="theme-hero__brand">
-              <img
-                src="{{ site_settings.logo_url }}"
-                alt="{{ site_settings.site_domain }} 平台标识"
-                class="theme-hero__brand-logo"
-              />
-              <span class="sr-only">{{ site_settings.site_domain }} Platform</span>
+            <div class="theme-hero__brand-row">
+              <div class="theme-hero__brand">
+                <img
+                  src="{{ site_settings.logo_url }}"
+                  alt="{{ site_settings.site_domain }} 平台标识"
+                  class="theme-hero__brand-logo"
+                />
+                <span class="sr-only">{{ site_settings.site_domain }} Platform</span>
+              </div>
+              <div class="theme-theme-switch" role="group" aria-label="主题切换">
+                <button
+                  type="button"
+                  class="theme-toggle"
+                  data-theme-toggle="aurora"
+                  aria-pressed="false"
+                >
+                  <span class="sr-only">切换到亮色主题</span>
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <circle cx="12" cy="12" r="5"></circle>
+                    <path d="M12 1v2m0 18v2m11-11h-2M3 12H1m16.95-6.95-1.41 1.41M8.46 17.54l-1.41 1.41M17.54 17.54l-1.41-1.41M7.05 7.05 5.64 5.64"></path>
+                  </svg>
+                </button>
+                <button
+                  type="button"
+                  class="theme-toggle"
+                  data-theme-toggle="nebula"
+                  aria-pressed="false"
+                >
+                  <span class="sr-only">切换到暗色主题</span>
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M21 12.79A9 9 0 0 1 11.21 3 7 7 0 1 0 21 12.79z"></path>
+                  </svg>
+                </button>
+              </div>
             </div>
             <div class="theme-hero__title-row">
               <h1 class="theme-hero__title">
                 <span class="theme-hero__title-text theme-hero__title-text--full"
-                  >{{ site_settings.site_domain }} 短链子域管理后台</span
+                  >https://{{ site_settings.site_domain }} 短链子域管理后台</span
                 >
                 <span class="theme-hero__title-text theme-hero__title-text--compact"
-                  >短链子域管理后台</span
+                  >https://{{ site_settings.site_domain }} 短链子域管理后台</span
                 >
               </h1>
               <div class="theme-hero__mobile-switch">
@@ -1778,31 +1822,6 @@
             </div>
           </div>
           <div class="theme-hero__actions">
-            <div class="theme-theme-switch" role="group" aria-label="主题切换">
-              <button
-                type="button"
-                class="theme-toggle"
-                data-theme-toggle="aurora"
-                aria-pressed="false"
-              >
-                <span class="sr-only">切换到亮色主题</span>
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <circle cx="12" cy="12" r="5"></circle>
-                  <path d="M12 1v2m0 18v2m11-11h-2M3 12H1m16.95-6.95-1.41 1.41M8.46 17.54l-1.41 1.41M17.54 17.54l-1.41-1.41M7.05 7.05 5.64 5.64"></path>
-                </svg>
-              </button>
-              <button
-                type="button"
-                class="theme-toggle"
-                data-theme-toggle="nebula"
-                aria-pressed="false"
-              >
-                <span class="sr-only">切换到暗色主题</span>
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M21 12.79A9 9 0 0 1 11.21 3 7 7 0 1 0 21 12.79z"></path>
-                </svg>
-              </button>
-            </div>
             {% if show_logout_button %}
             <a
               class="theme-button theme-button--ghost theme-button--password"
