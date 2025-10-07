@@ -4,7 +4,9 @@
   {% if oob %}hx-swap-oob="outerHTML"{% endif %}
 >
   <td class="theme-table__cell theme-table__cell--wrap theme-table__cell--summary">
-    {{ item.username }}
+    <span class="theme-table__summary-text" title="{{ item.username }}">
+      {{ item.username }}
+    </span>
   </td>
   <td class="theme-table__cell theme-table__cell--muted">{{ item.email }}</td>
   <td class="theme-table__cell">

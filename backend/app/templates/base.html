@@ -1323,13 +1323,46 @@
 
       .theme-table__col-target {
         width: clamp(11rem, 24vw, 18rem);
+        min-width: clamp(11rem, 24vw, 18rem);
+      }
+
+      .theme-table__cell--summary {
+        position: relative;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        min-width: 0;
+        white-space: nowrap;
+        overflow: hidden;
+      }
+
+      .theme-table__cell--summary .theme-copy {
+        min-width: 0;
+        max-width: 100%;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+      }
+
+      .theme-table__summary-text,
+      .theme-table__cell--summary .theme-copy__text {
+        display: block;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .theme-table__summary-text {
+        flex: 1 1 auto;
+        min-width: 0;
       }
 
       .theme-table__target-text {
-        display: inline-block;
+        display: block;
         max-width: clamp(11rem, 24vw, 18rem);
-        word-break: break-all;
-        white-space: normal;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
       }
 
       .theme-table tbody tr {
@@ -1367,7 +1400,7 @@
       }
 
       .theme-table__cell--wrap {
-        word-break: break-all;
+        overflow: hidden;
       }
 
       .theme-table__cell--right {
@@ -1398,21 +1431,6 @@
 
       .theme-table__col-actions-icon {
         display: none;
-      }
-
-      .theme-table__cell--summary {
-        position: relative;
-        display: flex;
-        align-items: center;
-        min-width: 0;
-      }
-
-      .theme-table__cell--summary .theme-copy {
-        min-width: 0;
-      }
-
-      .theme-table__cell--summary .theme-copy__text {
-        overflow-wrap: anywhere;
       }
 
       .theme-table__cell--actions {
@@ -1739,6 +1757,21 @@
         .theme-table__target-text {
           width: clamp(10rem, 42vw, 18rem);
           max-width: clamp(10rem, 42vw, 18rem);
+        }
+
+        .theme-table__cell--summary {
+          white-space: normal;
+        }
+
+        .theme-table__summary-text,
+        .theme-table__cell--summary .theme-copy__text,
+        .theme-table__target-text {
+          white-space: normal;
+          overflow-wrap: anywhere;
+        }
+
+        .theme-table__target-text {
+          text-overflow: clip;
         }
       }
 
