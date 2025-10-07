@@ -924,6 +924,33 @@
   onReady(() => {
     const useFallback = typeof window.htmx === "undefined";
 
+    if (
+      useFallback &&
+      typeof console !== "undefined" &&
+      typeof console.warn === "function"
+    ) {
+      const originalWarn = console.warn.bind(console);
+      const fallbackNotices = [
+        "htmx 未加载，使用回退逻辑处理管理后台交互。",
+        "htmx 未加载，使用回退逻辑处理短链子域管理后台交互。",
+      ];
+      console.warn = (...args) => {
+        const combined = args
+          .filter((value) => typeof value === "string")
+          .join(" ")
+          .trim();
+
+        if (
+          combined &&
+          fallbackNotices.some((notice) => combined.includes(notice))
+        ) {
+          return;
+        }
+
+        originalWarn(...args);
+      };
+    }
+
     restorePersistedTheme();
     bindThemeToggles();
     bindMobileThemeToggle();
