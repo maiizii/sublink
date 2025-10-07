@@ -909,6 +909,11 @@
 
     details.classList.toggle("is-open", Boolean(isOpen));
 
+    const row = details.closest(".theme-table__row");
+    if (row instanceof HTMLElement) {
+      row.classList.toggle("is-details-open", Boolean(isOpen));
+    }
+
     if (summary instanceof HTMLElement) {
       summary.setAttribute("aria-expanded", isOpen ? "true" : "false");
     }
