@@ -11,12 +11,6 @@
       href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap"
       rel="stylesheet"
     />
-    <link
-      rel="stylesheet"
-      href="https://cdn.jsdelivr.net/npm/tailwindcss@3.4.3/dist/tailwind.min.css"
-      integrity="sha384-4r7vpQCeYrOJvmSesi2atCkQ3pWhhi9z3pMsm9YaOGCE1zmdv8cE9VrjC2bX9msd"
-      crossorigin="anonymous"
-    />
     <script>
       (function () {
         var fallback = "aurora";
@@ -99,6 +93,19 @@
         --theme-copy-icon: rgba(148, 163, 184, 0.55);
         --theme-copy-icon-active: rgba(99, 102, 241, 0.95);
         --theme-copy-feedback: rgba(79, 70, 229, 0.95);
+      }
+
+      html,
+      body {
+        min-height: 100%;
+      }
+
+      .h-full {
+        height: 100%;
+      }
+
+      .bg-slate-50 {
+        background-color: #f8fafc;
       }
 
       :root[data-theme="nebula"] {
@@ -1671,12 +1678,6 @@
         background: rgba(148, 163, 184, 0.15);
       }
     </style>
-    <script
-      src="https://unpkg.com/htmx.org@1.9.10"
-      integrity="sha384-tPY/1+qsSVqSdz+CA0nVddOZXS6jttuPAHyBs+K6TfGsDz3jAC5vVsQt1zArhcXa"
-      crossorigin="anonymous"
-      defer
-    ></script>
     <script src="/static/admin-dashboard.js" defer></script>
     <script>
       document.addEventListener("htmx:configRequest", function (event) {
