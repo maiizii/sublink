@@ -22,7 +22,7 @@ def test_admin_dashboard_requires_basic_auth(client: "SimpleClient") -> None:
 def test_login_flow_success(client: "SimpleClient") -> None:
     response = client.get("/admin/login")
     assert response.status_code == 200
-    assert "登录 yet.la 短链子域管理后台" in response.text
+    assert "登录 yet.la 管理后台" in response.text
 
     response = client.post(
         "/admin/login",
@@ -66,7 +66,7 @@ def test_logout_clears_session(client: "SimpleClient") -> None:
 
     login_page = client.get("/admin/login")
     assert login_page.status_code == 200
-    assert "登录 yet.la 短链子域管理后台" in login_page.text
+    assert "登录 yet.la 管理后台" in login_page.text
 
     response = client.get("/admin", follow_redirects=False)
     assert response.status_code == 303

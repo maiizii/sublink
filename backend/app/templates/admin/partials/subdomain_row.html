@@ -55,8 +55,13 @@
       </button>
     </div>
     <details class="theme-table__details">
-      <summary class="theme-table__details-toggle">
-        <span class="theme-button theme-button--ghost theme-button--sm">操作</span>
+      <summary class="theme-table__details-toggle" aria-label="展开操作菜单">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <circle cx="5" cy="12" r="1.8"></circle>
+          <circle cx="12" cy="12" r="1.8"></circle>
+          <circle cx="19" cy="12" r="1.8"></circle>
+        </svg>
+        <span class="sr-only">展开操作菜单</span>
       </summary>
       <div class="theme-table__details-panel">
         <dl class="theme-table__details-list">

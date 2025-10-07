@@ -198,19 +198,28 @@
 
       .theme-hero__top {
         display: flex;
-        align-items: flex-start;
-        justify-content: space-between;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 1.35rem;
+        margin-bottom: 0.85rem;
+      }
+
+      .theme-hero__toolbar {
+        display: flex;
+        align-items: center;
+        justify-content: flex-start;
         gap: 1.25rem;
-        flex-wrap: wrap;
-        margin-bottom: 1rem;
+        width: 100%;
       }
 
       .theme-hero__actions {
         display: inline-flex;
         align-items: center;
-        gap: 0.75rem;
-        flex-wrap: wrap;
+        gap: 0.65rem;
+        flex-wrap: nowrap;
         justify-content: flex-end;
+        margin-left: auto;
+        flex-shrink: 0;
       }
 
       .theme-hero__actions:empty {
@@ -358,7 +367,7 @@
       .theme-hero__brand-row {
         display: flex;
         align-items: center;
-        justify-content: space-between;
+        justify-content: center;
         gap: 0.75rem;
         width: 100%;
       }
@@ -367,7 +376,7 @@
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        padding: 0.35rem 0.9rem;
+        padding: 0.45rem 1.4rem;
         border-radius: 999px;
         background: rgba(255, 255, 255, 0.18);
         backdrop-filter: blur(12px);
@@ -393,18 +402,16 @@
         font-weight: 600;
         letter-spacing: -0.02em;
         margin: 0;
-      }
-
-      .theme-hero__title {
-        text-align: center;
+        text-align: left;
       }
 
       .theme-hero__title-row {
         display: flex;
         align-items: center;
-        justify-content: center;
+        justify-content: flex-start;
         gap: 0.75rem;
-        text-align: center;
+        text-align: left;
+        flex: 1 1 auto;
       }
 
       .theme-hero__title-row .theme-hero__title {
@@ -845,7 +852,8 @@
       }
 
       .theme-form--login .theme-input {
-        max-width: none;
+        width: min(100%, 22rem);
+        max-width: 22rem;
         margin: 0;
       }
 
@@ -1034,6 +1042,11 @@
       .theme-input--compact {
         width: 6.5rem;
         min-width: 0;
+      }
+
+      .theme-input--wide {
+        width: min(100%, 26rem);
+        max-width: 100%;
       }
 
       @media (max-width: 640px) {
@@ -1306,10 +1319,39 @@
         cursor: pointer;
         display: inline-flex;
         align-items: center;
+        justify-content: center;
+        width: 2.25rem;
+        height: 2.25rem;
+        border-radius: 999px;
+        border: 1px solid var(--theme-button-border);
+        background: var(--theme-button-ghost-bg);
+        color: var(--theme-primary-strong);
+        transition: transform 0.2s ease, background 0.2s ease,
+          border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
       }
 
       .theme-table__details-toggle::-webkit-details-marker {
         display: none;
+      }
+
+      .theme-table__details-toggle svg {
+        width: 1.1rem;
+        height: 1.1rem;
+        stroke: currentColor;
+        stroke-width: 1.8;
+        fill: none;
+      }
+
+      .theme-table__details-toggle:hover,
+      .theme-table__details-toggle:focus-visible {
+        background: var(--theme-button-ghost-hover-bg);
+        border-color: transparent;
+        transform: translateY(-1px);
+        outline: none;
+      }
+
+      .theme-table__details-toggle:focus-visible {
+        box-shadow: var(--theme-input-focus-shadow);
       }
 
       .theme-table__details-panel {
@@ -1538,11 +1580,20 @@
           gap: 1rem;
         }
 
-        .theme-hero__actions {
-          width: 100%;
+        .theme-hero__toolbar {
           flex-direction: column;
           align-items: stretch;
           gap: 0.75rem;
+        }
+
+        .theme-hero__actions {
+          width: 100%;
+          flex-direction: row;
+          flex-wrap: wrap;
+          align-items: center;
+          justify-content: flex-end;
+          gap: 0.75rem;
+          margin-left: 0;
         }
 
         .theme-hero__actions .theme-button {
@@ -1637,10 +1688,16 @@
           width: 100%;
         }
 
-        .theme-hero__title-row {
+        .theme-hero__title-row,
+        .theme-hero__toolbar {
           width: 100%;
           justify-content: center;
           gap: 0.5rem;
+        }
+
+        .theme-hero__toolbar {
+          flex-direction: column;
+          align-items: center;
         }
 
         .theme-hero__title-text--full {
@@ -1665,9 +1722,10 @@
           gap: 0.5rem;
           flex-direction: row;
           align-items: center;
-          justify-content: flex-end;
-          flex-wrap: nowrap;
+          justify-content: center;
+          flex-wrap: wrap;
           width: 100%;
+          margin-left: 0;
         }
 
         .theme-hero__subtitle {
@@ -1773,7 +1831,6 @@
 
         .theme-hero__actions .theme-button,
         .theme-form__actions .theme-button,
-        .theme-table__details-toggle .theme-button,
         .theme-table__details-actions .theme-button {
           width: auto;
           min-width: 0;
@@ -1870,59 +1927,61 @@
                 />
                 <span class="sr-only">{{ site_settings.site_domain }} Platform</span>
               </div>
-              <div class="theme-theme-switch" role="group" aria-label="主题切换">
-                <button
-                  type="button"
-                  class="theme-toggle"
-                  data-theme-toggle="aurora"
-                  aria-pressed="false"
+            </div>
+            <div class="theme-hero__toolbar">
+              <div class="theme-hero__title-row">
+                <h1 class="theme-hero__title">
+                  <span class="theme-hero__title-text theme-hero__title-text--full"
+                    >{{ site_settings.site_domain }} 短链子域管理后台</span
+                  >
+                  <span class="theme-hero__title-text theme-hero__title-text--compact"
+                    >{{ site_settings.site_domain }} 短链子域管理后台</span
+                  >
+                </h1>
+              </div>
+              <div class="theme-hero__actions">
+                <div class="theme-theme-switch" role="group" aria-label="主题切换">
+                  <button
+                    type="button"
+                    class="theme-toggle"
+                    data-theme-toggle="aurora"
+                    aria-pressed="false"
+                  >
+                    <span class="sr-only">切换到亮色主题</span>
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <circle cx="12" cy="12" r="5"></circle>
+                      <path d="M12 1v2m0 18v2m11-11h-2M3 12H1m16.95-6.95-1.41 1.41M8.46 17.54l-1.41 1.41M17.54 17.54l-1.41-1.41M7.05 7.05 5.64 5.64"></path>
+                    </svg>
+                  </button>
+                  <button
+                    type="button"
+                    class="theme-toggle"
+                    data-theme-toggle="nebula"
+                    aria-pressed="false"
+                  >
+                    <span class="sr-only">切换到暗色主题</span>
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M21 12.79A9 9 0 0 1 11.21 3 7 7 0 1 0 21 12.79z"></path>
+                    </svg>
+                  </button>
+                </div>
+                {% if show_logout_button %}
+                <a
+                  class="theme-button theme-button--ghost theme-button--password"
+                  href="/admin/password"
                 >
-                  <span class="sr-only">切换到亮色主题</span>
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <circle cx="12" cy="12" r="5"></circle>
-                    <path d="M12 1v2m0 18v2m11-11h-2M3 12H1m16.95-6.95-1.41 1.41M8.46 17.54l-1.41 1.41M17.54 17.54l-1.41-1.41M7.05 7.05 5.64 5.64"></path>
-                  </svg>
-                </button>
-                <button
-                  type="button"
-                  class="theme-toggle"
-                  data-theme-toggle="nebula"
-                  aria-pressed="false"
+                  改密
+                </a>
+                <a
+                  class="theme-button theme-button--ghost theme-button--logout"
+                  href="/admin/logout"
+                  onclick="return confirm('确认退出登录？')"
                 >
-                  <span class="sr-only">切换到暗色主题</span>
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M21 12.79A9 9 0 0 1 11.21 3 7 7 0 1 0 21 12.79z"></path>
-                  </svg>
-                </button>
+                  退出
+                </a>
+                {% endif %}
               </div>
             </div>
-            <div class="theme-hero__title-row">
-              <h1 class="theme-hero__title">
-                <span class="theme-hero__title-text theme-hero__title-text--full"
-                  >{{ site_settings.site_domain }} 短链子域管理后台</span
-                >
-                <span class="theme-hero__title-text theme-hero__title-text--compact"
-                  >{{ site_settings.site_domain }} 短链子域管理后台</span
-                >
-              </h1>
-            </div>
-          </div>
-          <div class="theme-hero__actions">
-            {% if show_logout_button %}
-            <a
-              class="theme-button theme-button--ghost theme-button--password"
-              href="/admin/password"
-            >
-              改密
-            </a>
-            <a
-              class="theme-button theme-button--ghost theme-button--logout"
-              href="/admin/logout"
-              onclick="return confirm('确认退出登录？')"
-            >
-              退出
-            </a>
-            {% endif %}
           </div>
         </div>
       </div>
