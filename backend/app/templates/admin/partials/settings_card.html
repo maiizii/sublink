@@ -20,7 +20,7 @@
       hx-swap="outerHTML"
     >
       <div class="theme-form__grid theme-form__grid--two-fixed">
-        <div class="theme-field">
+        <div class="theme-field theme-field--mobile-condensed">
           <label for="site_domain" class="theme-label">管理域名 *</label>
           <input
             id="site_domain"
@@ -33,7 +33,7 @@
           />
           <p class="theme-hint">仅输入域名，无需协议。用于限制短链入口与界面展示。</p>
         </div>
-        <div class="theme-field">
+        <div class="theme-field theme-field--mobile-condensed">
           <label for="short_code_length" class="theme-label">短链默认长度 *</label>
           <input
             id="short_code_length"
@@ -47,7 +47,7 @@
           />
           <p class="theme-hint">用于自动生成短链编码，可随时调整。</p>
         </div>
-        <div class="theme-field theme-form__span-full">
+        <div class="theme-field theme-form__span-full theme-field--mobile-condensed">
           <label for="short_link_path" class="theme-label">短链路径前缀 *</label>
           <input
             id="short_link_path"
@@ -60,7 +60,7 @@
           />
           <p class="theme-hint">访问短链时的路径前缀，例如 /r/ 将生成 {{ short_link_prefix }}code。</p>
         </div>
-        <div class="theme-field theme-form__span-full">
+        <div class="theme-field theme-form__span-full theme-field--mobile-condensed">
           <label for="logo_url" class="theme-label">Logo 图片地址 *</label>
           <input
             id="logo_url"
@@ -72,7 +72,7 @@
             value="{{ site_settings.logo_url }}"
           />
         </div>
-        <div class="theme-field theme-form__span-full">
+        <div class="theme-field theme-form__span-full theme-field--mobile-condensed">
           <label for="icon_url" class="theme-label">网站 Icon 地址 *</label>
           <input
             id="icon_url"
