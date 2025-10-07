@@ -1,9 +1,26 @@
 {% extends "base.html" %}
 
 {% block content %}
+<style>
+  @media (min-width: 1024px) {
+    .theme-shell__body--auth {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      min-height: clamp(24rem, 60vh, 32rem);
+    }
+  }
+
+  @media (min-width: 1536px) {
+    .theme-shell__body--auth {
+      min-height: clamp(26rem, 58vh, 36rem);
+    }
+  }
+</style>
 <div class="theme-layout">
   <section class="theme-shell">
-    <div class="theme-shell__body theme-shell__body--center">
+    <div class="theme-shell__body theme-shell__body--center theme-shell__body--auth">
       <section class="theme-card theme-card--narrow theme-card--auth">
         <div class="theme-card__header theme-card__header--center">
           <h2 class="theme-card__title">登录 {{ site_settings.site_domain }} 管理后台</h2>
