@@ -1402,6 +1402,17 @@
 
       .theme-table__cell--summary {
         position: relative;
+        display: flex;
+        align-items: center;
+        min-width: 0;
+      }
+
+      .theme-table__cell--summary .theme-copy {
+        min-width: 0;
+      }
+
+      .theme-table__cell--summary .theme-copy__text {
+        overflow-wrap: anywhere;
       }
 
       .theme-table__cell--actions {
@@ -1457,6 +1468,9 @@
         align-items: center;
         gap: 0.5rem;
         flex-wrap: nowrap;
+        height: 100%;
+        margin-top: auto;
+        margin-bottom: auto;
       }
 
       .theme-table__actions .theme-button {
@@ -1991,6 +2005,15 @@
           justify-content: flex-end;
           gap: 0.5rem;
           text-align: right;
+          padding-right: 0;
+        }
+        .theme-table__cell--actions .theme-table__details-panel {
+          margin-right: 0;
+        }
+        .theme-table tbody
+          tr.theme-table__row:not(.theme-table__row--editing)
+          > .theme-table__cell--summary {
+          align-items: center;
         }
 
         .theme-table__details[open] > .theme-table__details-toggle {
