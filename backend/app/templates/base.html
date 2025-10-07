@@ -1247,13 +1247,14 @@
       }
 
       .theme-table__col-target {
-        width: min(30rem, 70vw);
+        width: clamp(12rem, 28vw, 22rem);
       }
 
       .theme-table__target-text {
         display: inline-block;
-        max-width: min(30rem, 70vw);
+        max-width: clamp(12rem, 28vw, 22rem);
         word-break: break-all;
+        white-space: normal;
       }
 
       .theme-table tbody tr {
@@ -1446,6 +1447,12 @@
         .theme-tabs {
           padding: 2rem 1.75rem 0;
         }
+
+        .theme-table__col-target,
+        .theme-table__target-text {
+          width: clamp(10rem, 42vw, 18rem);
+          max-width: clamp(10rem, 42vw, 18rem);
+        }
       }
 
       @media (max-width: 768px) {
@@ -1524,6 +1531,12 @@
 
         .theme-tab {
           flex: 0 0 auto;
+        }
+
+        .theme-table__col-target,
+        .theme-table__target-text {
+          width: 100%;
+          max-width: 100%;
         }
       }
 
@@ -1688,6 +1701,7 @@
         background: rgba(148, 163, 184, 0.15);
       }
     </style>
+    <script src="/static/vendor/htmx-lite.js" defer></script>
     <script src="/static/admin-dashboard.js" defer></script>
     <script>
       document.addEventListener("htmx:configRequest", function (event) {
