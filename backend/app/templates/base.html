@@ -667,6 +667,17 @@
         padding: 2.25rem var(--theme-container-padding) 0;
       }
 
+      .theme-tabs__group {
+        display: inline-flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.75rem;
+      }
+
+      .theme-tabs__group--secondary {
+        margin-left: auto;
+      }
+
       .theme-tab {
         display: inline-flex;
         align-items: center;
@@ -1281,6 +1292,86 @@
         gap: 0.75rem;
       }
 
+      .theme-table__actions--desktop {
+        display: flex;
+      }
+
+      .theme-table__details {
+        display: none;
+        margin-left: auto;
+      }
+
+      .theme-table__details-toggle {
+        list-style: none;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+      }
+
+      .theme-table__details-toggle::-webkit-details-marker {
+        display: none;
+      }
+
+      .theme-table__details-panel {
+        margin-top: 0.75rem;
+        padding: 0.75rem 0.9rem;
+        border-radius: var(--radius-sm);
+        background: var(--theme-surface-strong);
+        border: 1px solid var(--theme-surface-border);
+        box-shadow: var(--shadow-soft);
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+        min-width: min(100%, 18rem);
+        text-align: left;
+      }
+
+      .theme-table__details-list {
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 0.6rem;
+      }
+
+      .theme-table__details-item {
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+      }
+
+      .theme-table__details-item dt {
+        font-size: 0.75rem;
+        font-weight: 600;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        color: var(--theme-muted);
+      }
+
+      .theme-table__details-item dd {
+        margin: 0;
+        font-size: 0.9rem;
+        color: var(--theme-text-primary);
+        word-break: break-all;
+      }
+
+      .theme-table__details-link {
+        color: var(--theme-primary-strong);
+        text-decoration: none;
+        word-break: break-all;
+      }
+
+      .theme-table__details-link:hover,
+      .theme-table__details-link:focus-visible {
+        text-decoration: underline;
+      }
+
+      .theme-table__details-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 0.6rem;
+      }
+
       .theme-copy {
         display: inline-flex;
         align-items: center;
@@ -1572,6 +1663,11 @@
 
         .theme-hero__actions {
           gap: 0.5rem;
+          flex-direction: row;
+          align-items: center;
+          justify-content: flex-end;
+          flex-wrap: nowrap;
+          width: 100%;
         }
 
         .theme-hero__subtitle {
@@ -1581,6 +1677,18 @@
         .theme-tabs {
           padding: 1.1rem 1.05rem 0;
           gap: 0.6rem;
+          flex-wrap: wrap;
+          overflow-x: visible;
+        }
+
+        .theme-tabs__group {
+          width: 100%;
+          justify-content: flex-start;
+          gap: 0.6rem;
+        }
+
+        .theme-tabs__group--secondary {
+          margin-left: 0;
         }
 
         .theme-tab {
@@ -1621,6 +1729,30 @@
           padding: 0.85rem 1rem;
         }
 
+        .theme-table thead th:not(:first-child):not(:last-child),
+        .theme-table tbody td:not(:first-child):not(:last-child) {
+          display: none;
+        }
+
+        .theme-table__actions--desktop {
+          display: none;
+        }
+
+        .theme-table__details {
+          display: block;
+        }
+
+        .theme-table__details-panel {
+          width: 100%;
+          max-width: none;
+          box-shadow: none;
+          background: var(--theme-surface);
+        }
+
+        .theme-table__details-actions {
+          justify-content: flex-end;
+        }
+
         .theme-login-feedback {
           max-width: none;
         }
@@ -1637,6 +1769,41 @@
 
         .theme-button {
           width: 100%;
+        }
+
+        .theme-hero__actions .theme-button,
+        .theme-form__actions .theme-button,
+        .theme-table__details-toggle .theme-button,
+        .theme-table__details-actions .theme-button {
+          width: auto;
+          min-width: 0;
+        }
+
+        .theme-table__row--editing .theme-form__grid,
+        .theme-table__row--editing .theme-form__grid--two,
+        .theme-table__row--editing .theme-form__grid--three,
+        .theme-table__row--editing .theme-form__grid--two-fixed,
+        .theme-table__row--editing .theme-form__grid--user-identity {
+          grid-template-columns: minmax(0, 1fr);
+        }
+
+        .theme-table__row--editing .theme-field {
+          max-width: none;
+          width: 100%;
+        }
+
+        .theme-table__row--editing .theme-input,
+        .theme-table__row--editing .theme-input-affix,
+        .theme-table__row--editing .theme-input-affix__input,
+        .theme-table__row--editing .theme-select {
+          width: 100%;
+        }
+
+        .theme-table__row--editing .theme-form__actions {
+          justify-content: flex-end;
+          gap: 0.5rem;
+          width: auto;
+          align-self: flex-end;
         }
 
         .theme-form--login .theme-field,
@@ -1746,7 +1913,7 @@
               class="theme-button theme-button--ghost theme-button--password"
               href="/admin/password"
             >
-              修改密码
+              改密
             </a>
             <a
               class="theme-button theme-button--ghost theme-button--logout"

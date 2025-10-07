@@ -4,56 +4,60 @@
 <div class="theme-layout">
   <section class="theme-shell">
     <nav class="theme-tabs" aria-label="Sections">
-      <a
-        href="?tab=links"
-        class="theme-tab {% if active_tab == 'links' %}is-active{% endif %}"
-      >
-        <span class="theme-tab__dot"></span>
-        短链
-        <span
-          class="theme-tab__count"
-          id="short-link-count"
-          hx-get="/admin/links/count"
-          hx-trigger="load, refresh-links from:body"
-          hx-swap="outerHTML"
+      <div class="theme-tabs__group theme-tabs__group--primary">
+        <a
+          href="?tab=links"
+          class="theme-tab {% if active_tab == 'links' %}is-active{% endif %}"
         >
-          ({{ short_links|length }})
-        </span>
-      </a>
-      <a
-        href="?tab=subdomains"
-        class="theme-tab {% if active_tab == 'subdomains' %}is-active{% endif %}"
-      >
-        <span class="theme-tab__dot"></span>
-        子域
-        {% with count=subdomains|length %}
-        {% include "admin/partials/subdomain_count.html" %}
-        {% endwith %}
-      </a>
+          <span class="theme-tab__dot"></span>
+          短链
+          <span
+            class="theme-tab__count"
+            id="short-link-count"
+            hx-get="/admin/links/count"
+            hx-trigger="load, refresh-links from:body"
+            hx-swap="outerHTML"
+          >
+            ({{ short_links|length }})
+          </span>
+        </a>
+        <a
+          href="?tab=subdomains"
+          class="theme-tab {% if active_tab == 'subdomains' %}is-active{% endif %}"
+        >
+          <span class="theme-tab__dot"></span>
+          子域
+          {% with count=subdomains|length %}
+          {% include "admin/partials/subdomain_count.html" %}
+          {% endwith %}
+        </a>
+      </div>
       {% if current_user and current_user.is_admin %}
-      <a
-        href="?tab=users"
-        class="theme-tab {% if active_tab == 'users' %}is-active{% endif %}"
-      >
-        <span class="theme-tab__dot"></span>
-        用户
-        <span
-          class="theme-tab__count"
-          id="user-count"
-          hx-get="/admin/users/count"
-          hx-trigger="load, refresh-users from:body"
-          hx-swap="outerHTML"
+      <div class="theme-tabs__group theme-tabs__group--secondary">
+        <a
+          href="?tab=users"
+          class="theme-tab {% if active_tab == 'users' %}is-active{% endif %}"
         >
-          ({{ users|length }})
-        </span>
-      </a>
-      <a
-        href="?tab=settings"
-        class="theme-tab {% if active_tab == 'settings' %}is-active{% endif %}"
-      >
-        <span class="theme-tab__dot"></span>
-        设置
-      </a>
+          <span class="theme-tab__dot"></span>
+          用户
+          <span
+            class="theme-tab__count"
+            id="user-count"
+            hx-get="/admin/users/count"
+            hx-trigger="load, refresh-users from:body"
+            hx-swap="outerHTML"
+          >
+            ({{ users|length }})
+          </span>
+        </a>
+        <a
+          href="?tab=settings"
+          class="theme-tab {% if active_tab == 'settings' %}is-active{% endif %}"
+        >
+          <span class="theme-tab__dot"></span>
+          设置
+        </a>
+      </div>
       {% endif %}
     </nav>
     <div class="theme-shell__body">
