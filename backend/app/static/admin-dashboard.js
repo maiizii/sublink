@@ -922,7 +922,8 @@
   }
 
   onReady(() => {
-    const useFallback = typeof window.htmx === "undefined";
+    const useFallback =
+      !window.htmx || window.htmx.__YETLA_USE_FALLBACK__ === true;
 
     if (
       useFallback &&
