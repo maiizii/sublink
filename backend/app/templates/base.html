@@ -385,7 +385,7 @@
 
       @media (min-width: 1024px) {
         .theme-hero__brand {
-          padding: 0.45rem 2.8rem;
+          padding: 0.45rem 5.6rem;
         }
       }
 
@@ -965,6 +965,10 @@
         justify-self: start;
       }
 
+      .theme-field--mobile-condensed {
+        width: min(100%, 420px);
+      }
+
       .theme-checkbox {
         display: inline-flex;
         align-items: center;
@@ -1227,6 +1231,38 @@
         fill: none;
       }
 
+      .theme-button--password,
+      .theme-button--logout {
+        color: #ffffff;
+        background: rgba(255, 255, 255, 0.22);
+        border-color: rgba(255, 255, 255, 0.38);
+      }
+
+      .theme-button--password:hover,
+      .theme-button--password:focus-visible,
+      .theme-button--logout:hover,
+      .theme-button--logout:focus-visible {
+        color: var(--theme-primary-strong);
+        background: rgba(99, 102, 241, 0.18);
+        border-color: transparent;
+      }
+
+      :root[data-theme="nebula"] .theme-button--password,
+      :root[data-theme="nebula"] .theme-button--logout {
+        color: var(--theme-primary);
+        background: rgba(56, 189, 248, 0.16);
+        border-color: rgba(56, 189, 248, 0.32);
+      }
+
+      :root[data-theme="nebula"] .theme-button--password:hover,
+      :root[data-theme="nebula"] .theme-button--password:focus-visible,
+      :root[data-theme="nebula"] .theme-button--logout:hover,
+      :root[data-theme="nebula"] .theme-button--logout:focus-visible {
+        color: #ffffff;
+        background: rgba(56, 189, 248, 0.3);
+        border-color: transparent;
+      }
+
       .theme-feedback {
         border-top: 1px solid var(--theme-surface-border);
         padding: 1.35rem var(--theme-container-padding);
@@ -1328,8 +1364,24 @@
 
       .theme-table__col-actions {
         text-align: right;
-        width: 0;
+        width: 9.5rem;
+        min-width: 9.5rem;
         white-space: nowrap;
+      }
+
+      .theme-table__col-actions-label {
+        display: inline-flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 0.4rem;
+        width: 100%;
+      }
+
+      .theme-table__col-actions-text {
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: var(--theme-muted);
+        letter-spacing: 0.04em;
       }
 
       .theme-table__col-actions-icon {
@@ -1865,6 +1917,33 @@
           justify-content: flex-end;
         }
 
+        .theme-table__col-actions {
+          width: 100%;
+          min-width: 0;
+        }
+
+        .theme-table__col-actions-label {
+          justify-content: flex-start;
+        }
+
+        .theme-table__cell--right {
+          text-align: left;
+        }
+
+        .theme-table__details {
+          margin: 0.65rem 0 0;
+          width: 100%;
+        }
+
+        .theme-table__details-toggle {
+          margin-left: 0;
+        }
+
+        .theme-table__details-panel {
+          margin-top: 0.65rem;
+          margin-left: 0;
+        }
+
         .theme-login-feedback {
           max-width: none;
         }
@@ -1879,7 +1958,7 @@
           justify-content: space-between;
         }
 
-        .theme-button {
+        .theme-button {  
           width: 100%;
         }
 
@@ -1900,6 +1979,20 @@
           max-width: 100%;
         }
 
+        .theme-field--mobile-condensed {
+          width: min(100%, 19rem);
+          max-width: 100%;
+          margin-left: 0;
+          margin-right: 0;
+        }
+
+        .theme-field--mobile-condensed .theme-input,
+        .theme-field--mobile-condensed .theme-input-affix,
+        .theme-field--mobile-condensed .theme-input-affix__input,
+        .theme-field--mobile-condensed .theme-select {
+          width: 100%;
+        }
+
         .theme-card__body .theme-input,
         .theme-card__body .theme-input--wide,
         .theme-card__body .theme-input-affix,
@@ -1914,7 +2007,9 @@
         }
 
         .theme-form__footer--balanced .theme-button {
-          width: min(100%, 16rem);
+          width: min(100%, 14rem);
+          margin-left: auto;
+          margin-right: auto;
         }
 
         .theme-hero__actions .theme-button,
@@ -1935,6 +2030,10 @@
         .theme-table__row--editing .theme-field {
           max-width: none;
           width: 100%;
+        }
+
+        .theme-table__row--editing .theme-field--mobile-condensed {
+          width: min(100%, 19rem);
         }
 
         .theme-table__row--editing .theme-input,
