@@ -1311,7 +1311,7 @@
       }
 
       .theme-table thead th {
-        text-align: center;
+        text-align: left;
         padding: 0.95rem 1.5rem;
         font-weight: 600;
         letter-spacing: 0.02em;
@@ -1376,8 +1376,8 @@
 
       .theme-table__col-actions {
         text-align: right;
-        width: 8.5rem;
-        min-width: 8.5rem;
+        width: 7.25rem;
+        min-width: 7.25rem;
         white-space: nowrap;
       }
 
@@ -1441,10 +1441,19 @@
         color: var(--theme-text-secondary);
       }
 
+      .theme-table__cell--actions {
+        padding-left: 1.2rem;
+        padding-right: 1.2rem;
+      }
+
       .theme-table__actions {
         display: flex;
         justify-content: flex-end;
-        gap: 0.75rem;
+        gap: 0.5rem;
+      }
+
+      .theme-table__actions .theme-button--sm {
+        padding: 0.4rem 0.75rem;
       }
 
       .theme-table__actions--desktop {
@@ -1980,9 +1989,16 @@
           margin-left: 0;
         }
 
-        .theme-table__row.is-details-open .theme-table__cell--summary,
-        .theme-table__row.is-details-open .theme-table__cell--actions {
+        .theme-table__row.is-details-open .theme-table__cell--summary {
           display: none;
+        }
+
+        .theme-table__row.is-details-open .theme-table__cell--actions {
+          display: table-cell;
+        }
+
+        .theme-table__row.is-details-open .theme-table__details {
+          display: block;
         }
 
         .theme-table__row.is-details-open .theme-table__details-panel {
@@ -2015,6 +2031,12 @@
         .theme-button--icon svg {
           width: 1.35rem;
           height: 1.35rem;
+        }
+
+        .theme-hero__actions .theme-button--icon {
+          width: 3rem;
+          height: 3rem;
+          flex: 0 0 3rem;
         }
 
         .theme-field,
