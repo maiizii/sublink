@@ -383,6 +383,12 @@
         line-height: 0;
       }
 
+      @media (min-width: 1024px) {
+        .theme-hero__brand {
+          padding: 0.45rem 2.8rem;
+        }
+      }
+
       .theme-hero__heading {
         display: flex;
         flex-direction: column;
@@ -1140,6 +1146,11 @@
         justify-content: center;
       }
 
+      .theme-form__footer--balanced {
+        justify-content: center;
+        gap: 0.85rem;
+      }
+
       .theme-button {
         display: inline-flex;
         align-items: center;
@@ -1198,6 +1209,22 @@
       .theme-button--sm {
         padding: 0.45rem 1rem;
         font-size: 0.82rem;
+      }
+
+      .theme-button--icon {
+        padding: 0;
+        width: 2.75rem;
+        height: 2.75rem;
+        border-radius: 999px;
+        flex: 0 0 auto;
+      }
+
+      .theme-button--icon svg {
+        width: 1.35rem;
+        height: 1.35rem;
+        stroke: currentColor;
+        stroke-width: 1.8;
+        fill: none;
       }
 
       .theme-feedback {
@@ -1297,6 +1324,29 @@
 
       .theme-table__cell--right {
         text-align: right;
+      }
+
+      .theme-table__col-actions {
+        text-align: right;
+        width: 0;
+        white-space: nowrap;
+      }
+
+      .theme-table__col-actions-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: flex-end;
+        width: 1.75rem;
+        height: 1.75rem;
+        color: var(--theme-muted);
+      }
+
+      .theme-table__col-actions-icon svg {
+        width: 1.1rem;
+        height: 1.1rem;
+        stroke: currentColor;
+        stroke-width: 1.8;
+        fill: none;
       }
 
       .theme-table__actions {
@@ -1601,6 +1651,10 @@
           justify-content: center;
         }
 
+        .theme-hero__actions .theme-button--icon {
+          width: 3rem;
+        }
+
         .theme-main {
           padding: 0 1.5rem 2rem;
         }
@@ -1829,6 +1883,40 @@
           width: 100%;
         }
 
+        .theme-button--icon {
+          width: 3rem;
+          height: 3rem;
+        }
+
+        .theme-button--icon svg {
+          width: 1.35rem;
+          height: 1.35rem;
+        }
+
+        .theme-field,
+        .theme-field.theme-form__span-full,
+        .theme-field--constrained {
+          width: 100%;
+          max-width: 100%;
+        }
+
+        .theme-card__body .theme-input,
+        .theme-card__body .theme-input--wide,
+        .theme-card__body .theme-input-affix,
+        .theme-card__body .theme-input-affix__input,
+        .theme-card__body .theme-select {
+          width: 100%;
+          max-width: 100%;
+        }
+
+        .theme-form__footer--balanced {
+          align-items: center;
+        }
+
+        .theme-form__footer--balanced .theme-button {
+          width: min(100%, 16rem);
+        }
+
         .theme-hero__actions .theme-button,
         .theme-form__actions .theme-button,
         .theme-table__details-actions .theme-button {
@@ -1967,17 +2055,42 @@
                 </div>
                 {% if show_logout_button %}
                 <a
-                  class="theme-button theme-button--ghost theme-button--password"
+                  class="theme-button theme-button--ghost theme-button--icon theme-button--password"
                   href="/admin/password"
+                  aria-label="修改密码"
                 >
-                  改密
+                  <svg
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                    fill="none"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <circle cx="8" cy="12" r="3"></circle>
+                    <path d="M11 12h9"></path>
+                    <path d="M18 9v6"></path>
+                    <path d="M20 11v2"></path>
+                  </svg>
+                  <span class="sr-only">改密</span>
                 </a>
                 <a
-                  class="theme-button theme-button--ghost theme-button--logout"
+                  class="theme-button theme-button--ghost theme-button--icon theme-button--logout"
                   href="/admin/logout"
+                  aria-label="退出登录"
                   onclick="return confirm('确认退出登录？')"
                 >
-                  退出
+                  <svg
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                    fill="none"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <path d="M15 5h3a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-3"></path>
+                    <path d="M10 17l5-5-5-5"></path>
+                    <path d="M15 12H3"></path>
+                  </svg>
+                  <span class="sr-only">退出</span>
                 </a>
                 {% endif %}
               </div>

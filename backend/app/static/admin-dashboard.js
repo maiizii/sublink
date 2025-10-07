@@ -900,10 +900,14 @@
     }
 
     if (isOpen) {
+      details.open = true;
       details.setAttribute("open", "");
     } else {
+      details.open = false;
       details.removeAttribute("open");
     }
+
+    details.classList.toggle("is-open", Boolean(isOpen));
 
     if (summary instanceof HTMLElement) {
       summary.setAttribute("aria-expanded", isOpen ? "true" : "false");
