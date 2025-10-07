@@ -2043,7 +2043,8 @@
           justify-content: flex-end;
           gap: 0.5rem;
           text-align: right;
-          padding-right: 0;
+          padding-right: 1rem;
+          padding-left: 0.25rem;
         }
         .theme-table__cell--actions .theme-table__details-panel {
           margin-right: 0;
@@ -2079,9 +2080,9 @@
 
         .theme-table tbody tr.theme-table__row:not(.theme-table__row--editing) {
           display: grid;
-          grid-template-columns: minmax(0, 1fr) auto;
+          grid-template-columns: minmax(0, 1fr) minmax(2.5rem, max-content);
           align-items: center;
-          column-gap: 0.75rem;
+          column-gap: 0;
         }
 
         .theme-table tbody
@@ -2123,12 +2124,21 @@
           grid-column: 1 / -1;
           width: 100%;
           justify-content: flex-end;
+          padding-left: 0;
+          padding-right: 0;
         }
 
         .theme-table tbody
           tr.theme-table__row:not(.theme-table__row--editing).is-details-open
           > .theme-table__cell--actions
           .theme-table__details {
+          width: 100%;
+        }
+
+        .theme-table tbody
+          tr.theme-table__row:not(.theme-table__row--editing).is-details-open
+          > .theme-table__cell--actions
+          .theme-table__details-panel {
           width: 100%;
         }
 
