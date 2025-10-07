@@ -86,11 +86,17 @@ def _base_context(
     base_domain = settings.site_domain.strip().strip("/") or settings.site_domain
     base_url = f"https://{base_domain}".rstrip("/")
     short_link_prefix = build_short_link_prefix(settings)
+    short_link_display_prefix = short_link_prefix
+    for scheme in ("https://", "http://"):
+        if short_link_display_prefix.startswith(scheme):
+            short_link_display_prefix = short_link_display_prefix[len(scheme) :]
+            break
     return {
         "request": request,
         "base_domain": base_domain,
         "base_url": base_url,
         "short_link_prefix": short_link_prefix,
+        "short_link_display_prefix": short_link_display_prefix,
         "short_code_length": settings.short_code_length,
         "site_settings": settings,
         "current_year": datetime.utcnow().year,
