@@ -1970,29 +1970,38 @@
         }
 
         .theme-table__col-actions {
-          width: 100%;
+          width: auto;
           min-width: 0;
         }
 
         .theme-table__col-actions-label {
-          justify-content: flex-start;
+          justify-content: flex-end;
         }
 
         .theme-table__cell--actions {
-          text-align: left;
+          display: flex;
+          align-items: center;
+          justify-content: flex-end;
+          gap: 0.5rem;
+          text-align: right;
         }
 
         .theme-table__details[open] > .theme-table__details-toggle {
           display: none;
         }
 
-        .theme-table__details {
-          margin: 0.65rem 0 0;
+        .theme-table__cell--actions .theme-table__details {
+          margin: 0;
+          width: auto;
+        }
+
+        .theme-table__cell--actions .theme-table__details[open] {
           width: 100%;
+          margin-top: 0.65rem;
         }
 
         .theme-table__details-toggle {
-          margin-left: 0;
+          margin-left: auto;
         }
 
         .theme-table__details-panel {
@@ -2000,12 +2009,36 @@
           margin-left: 0;
         }
 
+        .theme-table tbody tr.theme-table__row:not(.theme-table__row--editing) {
+          display: grid;
+          grid-template-columns: minmax(0, 1fr) auto;
+          align-items: center;
+          column-gap: 0.75rem;
+        }
+
+        .theme-table tbody
+          tr.theme-table__row:not(.theme-table__row--editing)
+          > .theme-table__cell--summary {
+          grid-column: 1;
+        }
+
+        .theme-table tbody
+          tr.theme-table__row:not(.theme-table__row--editing)
+          > .theme-table__cell--actions {
+          grid-column: 2;
+        }
+
         .theme-table__row.is-details-open .theme-table__cell--summary {
           display: none;
         }
 
+        .theme-table tbody
+          tr.theme-table__row:not(.theme-table__row--editing).is-details-open {
+          grid-template-columns: minmax(0, 1fr);
+        }
+
         .theme-table__row.is-details-open .theme-table__cell--actions {
-          display: table-cell;
+          display: flex;
         }
 
         .theme-table__row.is-details-open .theme-table__details {
@@ -2014,6 +2047,21 @@
 
         .theme-table__row.is-details-open .theme-table__details-panel {
           margin-top: 0;
+        }
+
+        .theme-table tbody
+          tr.theme-table__row:not(.theme-table__row--editing).is-details-open
+          > .theme-table__cell--actions {
+          grid-column: 1 / -1;
+          width: 100%;
+          justify-content: flex-end;
+        }
+
+        .theme-table tbody
+          tr.theme-table__row:not(.theme-table__row--editing).is-details-open
+          > .theme-table__cell--actions
+          .theme-table__details {
+          width: 100%;
         }
 
         .theme-login-feedback {
