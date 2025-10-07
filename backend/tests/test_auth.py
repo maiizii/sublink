@@ -30,7 +30,7 @@ def test_login_flow_success(client: "SimpleClient") -> None:
     )
     assert response.status_code == 200
     assert "创建短链" in response.text
-    assert "修改密码" in response.text
+    assert "改密" in response.text
 
     dashboard = client.get("/admin", follow_redirects=False)
     assert dashboard.status_code == 200

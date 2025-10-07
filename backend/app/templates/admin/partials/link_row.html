@@ -33,7 +33,7 @@
   </td>
   {% endif %}
   <td class="theme-table__cell theme-table__cell--right">
-    <div class="theme-table__actions">
+    <div class="theme-table__actions theme-table__actions--desktop">
       <button
         type="button"
         class="theme-button theme-button--ghost theme-button--sm"
@@ -55,5 +55,65 @@
         删除
       </button>
     </div>
+    <details class="theme-table__details">
+      <summary class="theme-table__details-toggle">
+        <span class="theme-button theme-button--ghost theme-button--sm">操作</span>
+      </summary>
+      <div class="theme-table__details-panel">
+        <dl class="theme-table__details-list">
+          <div class="theme-table__details-item">
+            <dt>目标地址</dt>
+            <dd>
+              <a
+                href="{{ item.target_url }}"
+                class="theme-table__details-link"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                {{ item.target_url }}
+              </a>
+            </dd>
+          </div>
+          <div class="theme-table__details-item">
+            <dt>访问次数</dt>
+            <dd>{{ item.hits }}</dd>
+          </div>
+          <div class="theme-table__details-item">
+            <dt>创建时间</dt>
+            <dd>
+              {{ item.created_at.strftime('%Y-%m-%d %H:%M') if item.created_at else '-' }}
+            </dd>
+          </div>
+          {% if show_user_column %}
+          <div class="theme-table__details-item">
+            <dt>用户</dt>
+            <dd>{{ item.owner_username or '—' }}</dd>
+          </div>
+          {% endif %}
+        </dl>
+        <div class="theme-table__details-actions">
+          <button
+            type="button"
+            class="theme-button theme-button--ghost theme-button--sm"
+            hx-get="/admin/links/{{ item.id }}/edit"
+            hx-target="closest tr"
+            hx-swap="outerHTML"
+          >
+            编辑
+          </button>
+          <button
+            type="button"
+            class="theme-button theme-button--danger theme-button--sm"
+            hx-delete="/api/links/{{ item.id }}"
+            hx-target="#link-feedback"
+            hx-swap="innerHTML"
+            hx-confirm="确认删除该短链？"
+            data-success-event="refresh-links"
+          >
+            删除
+          </button>
+        </div>
+      </div>
+    </details>
   </td>
 </tr>
