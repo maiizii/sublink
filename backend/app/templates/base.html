@@ -1236,7 +1236,7 @@
       }
 
       .theme-table thead th {
-        text-align: left;
+        text-align: center;
         padding: 0.95rem 1.5rem;
         font-weight: 600;
         letter-spacing: 0.02em;
@@ -1244,6 +1244,16 @@
         font-size: 0.78rem;
         color: var(--theme-muted);
         background: var(--theme-table-head-bg);
+      }
+
+      .theme-table__col-target {
+        width: min(30rem, 70vw);
+      }
+
+      .theme-table__target-text {
+        display: inline-block;
+        max-width: min(30rem, 70vw);
+        word-break: break-all;
       }
 
       .theme-table tbody tr {
