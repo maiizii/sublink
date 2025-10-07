@@ -2097,6 +2097,13 @@
           grid-auto-rows: auto;
           align-items: center;
           column-gap: 0.5rem;
+          border-top: 1px solid rgba(148, 163, 184, 0.15);
+        }
+
+        .theme-table tbody
+          tr.theme-table__row:not(.theme-table__row--editing)
+          > .theme-table__cell {
+          border-top: none;
         }
 
         .theme-table tbody
