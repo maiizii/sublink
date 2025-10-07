@@ -9,6 +9,7 @@
       class="theme-copy"
       data-copy-value="https://{{ item.host }}"
       aria-label="复制子域 https://{{ item.host }}"
+      title="https://{{ item.host }}"
     >
       <span class="theme-copy__text">{{ item.host }}</span>
       <span class="theme-copy__icon" aria-hidden="true">
@@ -21,7 +22,7 @@
     </button>
   </td>
   <td class="theme-table__cell theme-table__cell--wrap theme-table__cell--muted theme-table__col-target">
-    <span class="theme-table__target-text">{{ item.target_url }}</span>
+    <span class="theme-table__target-text" title="{{ item.target_url }}">{{ item.target_url }}</span>
   </td>
   <td class="theme-table__cell theme-table__cell--muted">{{ item.code }}</td>
   <td class="theme-table__cell theme-table__cell--muted">{{ item.hits }}</td>
