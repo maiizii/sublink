@@ -2093,10 +2093,10 @@
 
         .theme-table tbody tr.theme-table__row:not(.theme-table__row--editing) {
           display: grid;
-          grid-template-columns: minmax(0, 1fr);
-          grid-template-rows: auto auto;
-          align-items: start;
-          row-gap: 0.35rem;
+          grid-template-columns: minmax(0, 1fr) auto;
+          grid-auto-rows: auto;
+          align-items: center;
+          column-gap: 0.5rem;
         }
 
         .theme-table tbody
@@ -2109,11 +2109,11 @@
         .theme-table tbody
           tr.theme-table__row:not(.theme-table__row--editing)
           > .theme-table__cell--actions {
-          grid-column: 1;
-          grid-row: 2;
-          width: 100%;
+          grid-column: 2;
+          grid-row: 1;
+          width: auto;
           justify-content: flex-end;
-          padding-right: 0.65rem;
+          padding-right: 0.25rem;
           padding-left: 0.25rem;
         }
 
@@ -2136,7 +2136,7 @@
         .theme-table tbody
           tr.theme-table__row:not(.theme-table__row--editing).is-details-open
           > .theme-table__cell--actions {
-          grid-column: 1;
+          grid-column: 1 / -1;
           grid-row: 1;
           width: 100%;
           justify-content: flex-start;
