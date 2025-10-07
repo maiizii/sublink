@@ -19,6 +19,8 @@
     },
   ];
   let storedThemeValue = null;
+  let detailsOutsideHandlerBound = false;
+  let detailsPanelId = 0;
 
   function onReady(callback) {
     if (document.readyState === "loading") {
@@ -892,6 +894,152 @@
     });
   }
 
+  function setDetailsOpen(details, summary, isOpen) {
+    if (!(details instanceof HTMLDetailsElement)) {
+      return;
+    }
+
+    if (isOpen) {
+      details.setAttribute("open", "");
+    } else {
+      details.removeAttribute("open");
+    }
+
+    if (summary instanceof HTMLElement) {
+      summary.setAttribute("aria-expanded", isOpen ? "true" : "false");
+    }
+  }
+
+  function closeOtherDetails(except) {
+    const openDetails = document.querySelectorAll(
+      ".theme-table__details[open]",
+    );
+
+    openDetails.forEach((details) => {
+      if (!(details instanceof HTMLDetailsElement)) {
+        return;
+      }
+
+      if (details === except) {
+        return;
+      }
+
+      const summary = details.querySelector(
+        ".theme-table__details-toggle",
+      );
+      setDetailsOpen(details, summary, false);
+    });
+  }
+
+  function ensureDetailsPanelAccessibility(details, summary) {
+    if (!(details instanceof HTMLDetailsElement)) {
+      return;
+    }
+
+    if (!(summary instanceof HTMLElement)) {
+      return;
+    }
+
+    summary.setAttribute("role", "button");
+    summary.setAttribute(
+      "aria-expanded",
+      details.hasAttribute("open") ? "true" : "false",
+    );
+
+    const panel = details.querySelector(".theme-table__details-panel");
+    if (panel instanceof HTMLElement) {
+      if (!panel.id) {
+        detailsPanelId += 1;
+        panel.id = `theme-details-panel-${detailsPanelId}`;
+      }
+      summary.setAttribute("aria-controls", panel.id);
+    }
+  }
+
+  function bindDetailsToggles(root = document) {
+    const scope = root instanceof Element ? root : document;
+    const detailElements = scope.querySelectorAll(".theme-table__details");
+
+    detailElements.forEach((details) => {
+      if (!(details instanceof HTMLDetailsElement)) {
+        return;
+      }
+
+      if (details.dataset.detailsEnhanced === "true") {
+        return;
+      }
+
+      const summary = details.querySelector(
+        ".theme-table__details-toggle",
+      );
+      if (!(summary instanceof HTMLElement)) {
+        return;
+      }
+
+      ensureDetailsPanelAccessibility(details, summary);
+
+      summary.addEventListener("click", (event) => {
+        event.preventDefault();
+        const shouldOpen = !details.hasAttribute("open");
+        if (shouldOpen) {
+          closeOtherDetails(details);
+        }
+        setDetailsOpen(details, summary, shouldOpen);
+      });
+
+      summary.addEventListener("keydown", (event) => {
+        if (event.key === " " || event.key === "Enter") {
+          event.preventDefault();
+          summary.click();
+        }
+      });
+
+      details.addEventListener("toggle", () => {
+        summary.setAttribute(
+          "aria-expanded",
+          details.hasAttribute("open") ? "true" : "false",
+        );
+      });
+
+      details.addEventListener("keyup", (event) => {
+        if (event.key === "Escape") {
+          setDetailsOpen(details, summary, false);
+          summary.focus({ preventScroll: true });
+        }
+      });
+
+      details.dataset.detailsEnhanced = "true";
+    });
+
+    if (!detailsOutsideHandlerBound) {
+      document.addEventListener("click", (event) => {
+        const target = event.target;
+        if (!(target instanceof Element)) {
+          return;
+        }
+
+        if (target.closest(".theme-table__details")) {
+          return;
+        }
+
+        const openDetails = document.querySelectorAll(
+          ".theme-table__details[open]",
+        );
+        openDetails.forEach((details) => {
+          if (!(details instanceof HTMLDetailsElement)) {
+            return;
+          }
+          const summary = details.querySelector(
+            ".theme-table__details-toggle",
+          );
+          setDetailsOpen(details, summary, false);
+        });
+      });
+
+      detailsOutsideHandlerBound = true;
+    }
+  }
+
   function applyPostSuccessEnhancements(formLike) {
     if (!(formLike instanceof HTMLFormElement)) {
       return;
@@ -919,6 +1067,7 @@
   function enhanceDynamicUI(root) {
     bindDomainInputs(root);
     bindCopyButtons(root);
+    bindDetailsToggles(root);
   }
 
   onReady(() => {
