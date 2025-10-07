@@ -27,7 +27,7 @@
             name="site_domain"
             type="text"
             required
-            class="theme-input"
+            class="theme-input theme-input--wide"
             placeholder="如 yet.la"
             value="{{ site_settings.site_domain }}"
           />
@@ -42,7 +42,7 @@
             min="3"
             max="64"
             required
-            class="theme-input"
+            class="theme-input theme-input--compact"
             value="{{ site_settings.short_code_length }}"
           />
           <p class="theme-hint">用于自动生成短链编码，可随时调整。</p>
@@ -54,7 +54,7 @@
             name="short_link_path"
             type="text"
             required
-            class="theme-input"
+            class="theme-input theme-input--wide"
             placeholder="如 / 或 /r/"
             value="{{ site_settings.short_link_path }}"
           />
@@ -67,7 +67,7 @@
             name="logo_url"
             type="url"
             required
-            class="theme-input"
+            class="theme-input theme-input--wide"
             placeholder="https://example.com/logo.png"
             value="{{ site_settings.logo_url }}"
           />
@@ -79,7 +79,7 @@
             name="icon_url"
             type="url"
             required
-            class="theme-input"
+            class="theme-input theme-input--wide"
             placeholder="https://example.com/favicon.png"
             value="{{ site_settings.icon_url }}"
           />
