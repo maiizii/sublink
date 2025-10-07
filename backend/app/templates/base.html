@@ -2080,7 +2080,7 @@
 
         .theme-table tbody tr.theme-table__row:not(.theme-table__row--editing) {
           display: grid;
-          grid-template-columns: minmax(0, 1fr) minmax(2.5rem, max-content);
+          grid-template-columns: minmax(0, 1fr) auto;
           align-items: center;
           column-gap: 0;
         }
@@ -2095,6 +2095,9 @@
           tr.theme-table__row:not(.theme-table__row--editing)
           > .theme-table__cell--actions {
           grid-column: 2;
+          justify-content: flex-end;
+          padding-right: 0.65rem;
+          padding-left: 0.4rem;
         }
 
         .theme-table__row.is-details-open .theme-table__cell--summary {
@@ -2123,7 +2126,7 @@
           > .theme-table__cell--actions {
           grid-column: 1 / -1;
           width: 100%;
-          justify-content: flex-end;
+          justify-content: flex-start;
           padding-left: 0;
           padding-right: 0;
         }
@@ -2133,6 +2136,13 @@
           > .theme-table__cell--actions
           .theme-table__details {
           width: 100%;
+        }
+
+        .theme-table tbody
+          tr.theme-table__row:not(.theme-table__row--editing)
+          > .theme-table__cell--actions
+          .theme-table__details {
+          width: auto;
         }
 
         .theme-table tbody
