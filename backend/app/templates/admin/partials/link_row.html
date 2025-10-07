@@ -4,22 +4,24 @@
   {% if oob %}hx-swap-oob="outerHTML"{% endif %}
 >
   <td class="theme-table__cell theme-table__cell--summary">
-    <button
-      type="button"
-      class="theme-copy"
-      data-copy-value="{{ short_link_prefix }}{{ item.code }}"
-      aria-label="复制短链 {{ short_link_prefix }}{{ item.code }}"
-      title="{{ short_link_prefix }}{{ item.code }}"
-    >
-      <span class="theme-copy__text">{{ short_link_display_prefix }}{{ item.code }}</span>
-      <span class="theme-copy__icon" aria-hidden="true">
-        <svg viewBox="0 0 24 24">
-          <rect x="9" y="9" width="12" height="12" rx="2"></rect>
-          <path d="M5 15V5a2 2 0 0 1 2-2h10"></path>
-        </svg>
-      </span>
-      <span class="theme-copy__feedback" aria-hidden="true">已复制</span>
-    </button>
+    <div class="theme-table__summary">
+      <button
+        type="button"
+        class="theme-copy"
+        data-copy-value="{{ short_link_prefix }}{{ item.code }}"
+        aria-label="复制短链 {{ short_link_prefix }}{{ item.code }}"
+        title="{{ short_link_prefix }}{{ item.code }}"
+      >
+        <span class="theme-copy__text">{{ short_link_display_prefix }}{{ item.code }}</span>
+        <span class="theme-copy__icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24">
+            <rect x="9" y="9" width="12" height="12" rx="2"></rect>
+            <path d="M5 15V5a2 2 0 0 1 2-2h10"></path>
+          </svg>
+        </span>
+        <span class="theme-copy__feedback" aria-hidden="true">已复制</span>
+      </button>
+    </div>
   </td>
   <td class="theme-table__cell theme-table__cell--wrap theme-table__cell--muted theme-table__col-target">
     <span class="theme-table__target-text" title="{{ item.target_url }}">{{ item.target_url }}</span>
