@@ -387,7 +387,7 @@
                 <textarea
                   id="subdomain-blacklist-labels"
                   name="labels"
-                  class="theme-input theme-input--wide theme-textarea"
+                  class="theme-input theme-textarea"
                   rows="4"
                   placeholder="例如：www api admin"
                   spellcheck="false">{{ subdomain_blacklist_text }}</textarea>
@@ -408,15 +408,6 @@
             role="status"
             aria-live="polite"
           ></div>
-          <div
-            id="subdomain-blacklist-table"
-            class="theme-card__body theme-card__body--table"
-            hx-get="/admin/subdomains/blacklist/table"
-            hx-trigger="load, refresh-subdomain-blacklist from:body"
-            hx-swap="innerHTML"
-          >
-            {% include "admin/partials/subdomain_blacklist_table.html" %}
-          </div>
         </section>
       </div>
       {% endif %}
