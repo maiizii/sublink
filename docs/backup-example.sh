@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# 示例备份脚本：供 cron 调度使用，将 SubLink（yet.la）数据与日志归档后上传到远端存储。
+# 示例备份脚本：供 cron 调度使用，将 SubLink（yet.la等）数据与日志归档后上传到远端存储。
 # 根据生产环境修改 STORAGE_CMD 以适配 rsync、rclone 或云厂商 CLI。
 
 set -euo pipefail
