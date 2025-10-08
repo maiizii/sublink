@@ -11,14 +11,16 @@
         <div class="theme-field">
           {% set current_domain = item.domain or primary_domain %}
           <div class="theme-field__header">
-            <label for="code-{{ item.id }}" class="theme-label">短链</label>
+            <label for="code-{{ item.id }}" class="theme-label"
+              >{{ _('admin.labels.shortLink') }}</label
+            >
             <select
               id="short-link-domain-{{ item.id }}"
               name="domain"
               class="theme-select theme-select--inline"
               data-short-link-domain
               data-prefix-display="[data-short-link-prefix-display-{{ item.id }}]"
-              aria-label="选择域名"
+              aria-label="{{ _('admin.aria.selectDomain') }}"
               {% if not current_user.is_admin %}disabled{% endif %}
             >
               {% for domain in short_link_domains %}
@@ -54,12 +56,14 @@
               autocomplete="off"
               spellcheck="false"
               pattern="^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$"
-              title="仅允许小写字母、数字或连字符，首尾需为字母或数字"
+              title="{{ _('admin.validation.slugPattern') }}"
             />
           </div>
         </div>
         <div class="theme-field theme-form__span-full theme-field--constrained theme-field--mobile-condensed">
-          <label for="target-{{ item.id }}" class="theme-label">目标地址</label>
+          <label for="target-{{ item.id }}" class="theme-label"
+            >{{ _('admin.labels.targetUrl') }}</label
+          >
           <input
             id="target-{{ item.id }}"
             name="target_url"
@@ -71,7 +75,7 @@
         </div>
       </div>
       <div class="theme-form__footer">
-        <p class="theme-helper">提交后会立即更新短链并刷新列表。</p>
+        <p class="theme-helper">{{ _('admin.helpers.updateShortLink') }}</p>
         <div class="theme-form__actions">
           <button
             type="button"
@@ -80,10 +84,10 @@
             hx-target="closest tr"
             hx-swap="outerHTML"
           >
-            取消
+            {{ _('admin.buttons.cancel') }}
           </button>
           <button type="submit" class="theme-button theme-button--solid theme-button--sm">
-            保存
+            {{ _('admin.buttons.save') }}
           </button>
         </div>
       </div>

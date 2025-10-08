@@ -5,8 +5,13 @@ from typing import Iterable
 
 from sqlalchemy import select
 
+from .i18n import DEFAULT_LOCALE, translate
 from .models import SessionLocal, SubdomainBlacklist
 from .validators import normalize_slug
+
+
+def _t(key: str) -> str:
+    return translate(key, locale=DEFAULT_LOCALE)
 
 
 DEFAULT_SUBDOMAIN_BLACKLIST_LABELS: tuple[str, ...] = (
@@ -77,7 +82,7 @@ def ensure_default_subdomain_blacklist() -> None:
     with SessionLocal() as session:
         existing = {label for label in session.scalars(select(SubdomainBlacklist.label))}
         missing = [
-            normalize_slug(label, field="子域")
+            normalize_slug(label, field=_t("admin.fields.subdomainPrefix"))
             for label in DEFAULT_SUBDOMAIN_BLACKLIST_LABELS
             if label not in existing
         ]

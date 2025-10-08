@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Console 子域示例</title>
+    <title data-i18n="metaTitle"></title>
     <style>
       :root {
         color-scheme: light;
@@ -53,8 +53,13 @@
   </head>
   <body>
     <main class="page">
-      <h1>console.yet.la</h1>
-      <p>这是后台控制台子域，通过 Nginx 的子域匹配规则路由到本目录。</p>
+      <h1 data-i18n="heading"></h1>
+      <p data-i18n="description"></p>
     </main>
+    <script src="../lang/i18n.js"></script>
+    <script src="../lang/zh-CN.js"></script>
+    <script>
+      window.applyTranslations('console');
+    </script>
   </body>
 </html>

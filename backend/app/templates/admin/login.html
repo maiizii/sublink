@@ -23,8 +23,10 @@
     <div class="theme-shell__body theme-shell__body--center theme-shell__body--auth">
       <section class="theme-card theme-card--narrow theme-card--auth">
         <div class="theme-card__header theme-card__header--center">
-          <h2 class="theme-card__title">登录 {{ site_settings.site_domain }} 管理后台</h2>
-          <p class="theme-card__subtitle">输入账号与密码</p>
+          <h2 class="theme-card__title">
+            {{ _('admin.login.title', site=site_settings.site_domain) }}
+          </h2>
+          <p class="theme-card__subtitle">{{ _('admin.login.subtitle') }}</p>
         </div>
         <div class="theme-card__body">
           <form
@@ -34,7 +36,7 @@
           >
             <div class="theme-field">
               <label for="username" class="theme-label">
-                <span class="theme-label__text">账号</span>
+                <span class="theme-label__text">{{ _('admin.login.usernameLabel') }}</span>
                 <span class="theme-label__marker">*</span>
               </label>
               <input
@@ -47,12 +49,12 @@
                 spellcheck="false"
                 value="{{ username_value }}"
                 pattern="^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$"
-                title="仅允许小写字母、数字或连字符，首尾需为字母或数字"
+                title="{{ _('admin.validation.slugPattern') }}"
               />
             </div>
             <div class="theme-field">
               <label for="password" class="theme-label">
-                <span class="theme-label__text">密码</span>
+                <span class="theme-label__text">{{ _('admin.login.passwordLabel') }}</span>
                 <span class="theme-label__marker">*</span>
               </label>
               <input
@@ -66,7 +68,7 @@
             </div>
             <div class="theme-form__footer theme-form__footer--center">
               <button type="submit" class="theme-button theme-button--solid theme-button--block">
-                登录
+                {{ _('admin.buttons.login') }}
               </button>
             </div>
           </form>

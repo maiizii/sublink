@@ -10,7 +10,7 @@
           class="theme-tab {% if active_tab == 'links' %}is-active{% endif %}"
         >
           <span class="theme-tab__dot"></span>
-          短链
+          {{ _('admin.tabs.links') }}
           <span
             class="theme-tab__count"
             id="short-link-count"
@@ -26,7 +26,7 @@
           class="theme-tab {% if active_tab == 'subdomains' %}is-active{% endif %}"
         >
           <span class="theme-tab__dot"></span>
-          子域
+          {{ _('admin.tabs.subdomains') }}
           {% with count=subdomains|length %}
           {% include "admin/partials/subdomain_count.html" %}
           {% endwith %}
@@ -39,7 +39,7 @@
           class="theme-tab {% if active_tab == 'users' %}is-active{% endif %}"
         >
           <span class="theme-tab__dot"></span>
-          用户
+          {{ _('admin.tabs.users') }}
           <span
             class="theme-tab__count"
             id="user-count"
@@ -55,7 +55,7 @@
           class="theme-tab {% if active_tab == 'settings' %}is-active{% endif %}"
         >
           <span class="theme-tab__dot"></span>
-          设置
+          {{ _('admin.tabs.settings') }}
         </a>
       </div>
       {% endif %}
@@ -65,9 +65,11 @@
       <div class="theme-stack">
         <section class="theme-card">
           <div class="theme-card__header">
-            <h2 class="theme-card__title">创建短链</h2>
+            <h2 class="theme-card__title">
+              {{ _('admin.sections.createShortLink.title') }}
+            </h2>
             <p class="theme-card__subtitle">
-              填写目标地址，可按需调整短链后缀。
+              {{ _('admin.sections.createShortLink.subtitle') }}
             </p>
           </div>
           <div class="theme-card__body">
@@ -85,14 +87,16 @@
               <div class="theme-form__grid theme-form__grid--single">
                 <div class="theme-field">
                   <div class="theme-field__header">
-                    <label for="code" class="theme-label">短链*</label>
+                    <label for="code" class="theme-label"
+                      >{{ _('admin.labels.shortLink') }}*</label
+                    >
                     <select
                       id="short-link-domain"
                       name="domain"
                       class="theme-select theme-select--inline"
                       data-short-link-domain
                       data-prefix-display="[data-short-link-prefix-display]"
-                      aria-label="选择域名"
+                      aria-label="{{ _('admin.aria.selectDomain') }}"
                     >
                       {% for domain in short_link_domains %}
                       {% set option_prefix = short_link_prefix_map.get(domain, short_link_prefix) %}
@@ -123,27 +127,29 @@
                       data-random-code-length="{{ short_code_length }}"
                       autocomplete="off"
                       spellcheck="false"
-                      placeholder="自动生成，可修改"
+                      placeholder="{{ _('admin.placeholders.shortLinkAuto') }}"
                       pattern="^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$"
-                      title="仅允许小写字母、数字或连字符，首尾需为字母或数字"
+                      title="{{ _('admin.validation.slugPattern') }}"
                     />
                   </div>
                 </div>
                 <div class="theme-field theme-form__span-full theme-field--constrained theme-field--mobile-condensed">
-                  <label for="target_url" class="theme-label">目标地址 *</label>
+                  <label for="target_url" class="theme-label"
+                    >{{ _('admin.labels.targetUrl') }} *</label
+                  >
                   <input
                     id="target_url"
                     name="target_url"
                     type="url"
                     required
                     class="theme-input theme-input--wide"
-                    placeholder="https://example.com/path"
+                    placeholder="{{ _('admin.placeholders.targetUrl') }}"
                   />
                 </div>
               </div>
               <div class="theme-form__footer theme-form__footer--center">
                 <button type="submit" class="theme-button theme-button--solid">
-                  创建短链
+                  {{ _('admin.buttons.createShortLink') }}
                 </button>
               </div>
             </form>
@@ -157,9 +163,11 @@
         </section>
         <section class="theme-card">
           <div class="theme-card__header">
-            <h2 class="theme-card__title">短链列表</h2>
+            <h2 class="theme-card__title">
+              {{ _('admin.sections.shortLinkList.title') }}
+            </h2>
             <p class="theme-card__subtitle">
-              查看短链、跳转目标与访问次数，可直接复制、编辑或删除。
+              {{ _('admin.sections.shortLinkList.subtitle') }}
             </p>
           </div>
           <div
@@ -177,9 +185,11 @@
       <div class="theme-stack">
         <section class="theme-card">
           <div class="theme-card__header">
-            <h2 class="theme-card__title">创建子域</h2>
+            <h2 class="theme-card__title">
+              {{ _('admin.sections.createSubdomain.title') }}
+            </h2>
             <p class="theme-card__subtitle">
-              填写子域前缀并选择域名，系统会自动拼接完整主机名；状态码默认为 302，可在下拉菜单中切换。
+              {{ _('admin.sections.createSubdomain.subtitle') }}
             </p>
           </div>
           <div class="theme-card__body">
@@ -197,13 +207,15 @@
               <div class="theme-form__grid theme-form__grid--three">
                 <div class="theme-field">
                   <div class="theme-field__header">
-                    <label for="subdomain-prefix" class="theme-label">子域 *</label>
+                    <label for="subdomain-prefix" class="theme-label"
+                      >{{ _('admin.labels.subdomain') }} *</label
+                    >
                     <select
                       id="subdomain-domain"
                       name="domain"
                       class="theme-select theme-select--inline"
                       data-domain-select-source
-                      aria-label="选择域名"
+                      aria-label="{{ _('admin.aria.selectDomain') }}"
                     >
                       {% for domain in managed_domains %}
                       <option
@@ -226,12 +238,12 @@
                       type="text"
                       required
                       class="theme-input-affix__input"
-                      placeholder="如 marketing"
+                      placeholder="{{ _('admin.placeholders.subdomainPrefix') }}"
                       autocomplete="off"
                       spellcheck="false"
                       data-domain-input-field
                       pattern="^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$"
-                      title="仅允许小写字母、数字或连字符，首尾需为字母或数字"
+                      title="{{ _('admin.validation.slugPattern') }}"
                     />
                     <span
                       class="theme-input-affix__addon theme-input-affix__addon--suffix"
@@ -241,7 +253,9 @@
                   </div>
                 </div>
                 <div class="theme-field">
-                  <label for="subdomain-code" class="theme-label">状态码</label>
+                  <label for="subdomain-code" class="theme-label"
+                    >{{ _('admin.labels.statusCode') }}</label
+                  >
                   <select id="subdomain-code" name="code" class="theme-select">
                     {% for option in subdomain_code_options %}
                     <option value="{{ option }}" {% if option == 302 %}selected{% endif %}>{{ option }}</option>
@@ -249,22 +263,24 @@
                   </select>
                 </div>
                 <div class="theme-field theme-form__span-full theme-field--constrained theme-field--mobile-condensed">
-                  <label for="target_url" class="theme-label">目标地址 *</label>
+                  <label for="target_url" class="theme-label"
+                    >{{ _('admin.labels.targetUrl') }} *</label
+                  >
                   <input
                     id="target_url"
                     name="target_url"
                     type="url"
                     required
                     class="theme-input theme-input--wide"
-                    placeholder="https://example.com"
+                    placeholder="{{ _('admin.placeholders.targetUrlSimple') }}"
                   />
                 </div>
               </div>
-              <div class="theme-form__footer theme-form__footer--center">
-                <button type="submit" class="theme-button theme-button--solid">
-                  创建子域
-                </button>
-              </div>
+                <div class="theme-form__footer theme-form__footer--center">
+                  <button type="submit" class="theme-button theme-button--solid">
+                  {{ _('admin.buttons.createSubdomain') }}
+                  </button>
+                </div>
             </form>
           </div>
           <div
@@ -276,9 +292,11 @@
         </section>
         <section class="theme-card">
           <div class="theme-card__header">
-            <h2 class="theme-card__title">子域列表</h2>
+            <h2 class="theme-card__title">
+              {{ _('admin.sections.subdomainList.title') }}
+            </h2>
             <p class="theme-card__subtitle">
-              快速查看子域、跳转目标与状态码，可直接复制、编辑或删除。
+              {{ _('admin.sections.subdomainList.subtitle') }}
             </p>
           </div>
           <div
@@ -296,9 +314,11 @@
       <div class="theme-stack">
         <section class="theme-card">
           <div class="theme-card__header">
-            <h2 class="theme-card__title">创建用户</h2>
+            <h2 class="theme-card__title">
+              {{ _('admin.sections.createUser.title') }}
+            </h2>
             <p class="theme-card__subtitle">
-              管理员可在此创建新用户，设置邮箱与初始密码，可选择是否授予管理员权限。
+              {{ _('admin.sections.createUser.subtitle') }}
             </p>
           </div>
           <div class="theme-card__body">
@@ -316,22 +336,26 @@
               <div class="theme-form__grid theme-form__grid--two-fixed">
                 <div class="theme-form__grid theme-form__grid--user-identity theme-form__span-full">
                   <div class="theme-field theme-field--mobile-condensed">
-                    <label for="user-username" class="theme-label">用户名 *</label>
+                    <label for="user-username" class="theme-label"
+                      >{{ _('admin.labels.username') }} *</label
+                    >
                     <input
                       id="user-username"
                       name="username"
                       type="text"
                       required
                       class="theme-input theme-input--wide"
-                      placeholder="如 alice"
+                      placeholder="{{ _('admin.placeholders.username') }}"
                       autocomplete="off"
                       spellcheck="false"
                       pattern="^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$"
-                      title="仅允许小写字母、数字或连字符，首尾需为字母或数字"
+                      title="{{ _('admin.validation.slugPattern') }}"
                     />
                   </div>
                   <div class="theme-field theme-field--mobile-condensed">
-                    <label for="user-email" class="theme-label">邮箱 *</label>
+                    <label for="user-email" class="theme-label"
+                      >{{ _('admin.labels.email') }} *</label
+                    >
                     <input
                       id="user-email"
                       name="email"
@@ -342,19 +366,23 @@
                     />
                   </div>
                   <div class="theme-field">
-                    <label for="create-role" class="theme-label">权限</label>
+                    <label for="create-role" class="theme-label"
+                      >{{ _('admin.labels.permissions') }}</label
+                    >
                     <select
                       id="create-role"
                       name="is_admin"
                       class="theme-input theme-input--compact"
                     >
-                      <option value="0" selected>普通用户</option>
-                      <option value="1">管理员</option>
+                      <option value="0" selected>{{ _('admin.roles.standard') }}</option>
+                      <option value="1">{{ _('admin.roles.admin') }}</option>
                     </select>
                   </div>
                 </div>
                 <div class="theme-field theme-field--mobile-condensed">
-                  <label for="user-password" class="theme-label">密码 *</label>
+                  <label for="user-password" class="theme-label"
+                    >{{ _('admin.labels.password') }} *</label
+                  >
                   <input
                     id="user-password"
                     name="password"
@@ -362,11 +390,13 @@
                     minlength="6"
                     required
                     class="theme-input theme-input--wide"
-                    placeholder="至少 6 位"
+                    placeholder="{{ _('admin.placeholders.password') }}"
                   />
                 </div>
                 <div class="theme-field theme-field--mobile-condensed">
-                  <label for="user-password-confirm" class="theme-label">确认密码 *</label>
+                  <label for="user-password-confirm" class="theme-label"
+                    >{{ _('admin.labels.passwordConfirm') }} *</label
+                  >
                   <input
                     id="user-password-confirm"
                     name="password_confirm"
@@ -374,13 +404,13 @@
                     minlength="6"
                     required
                     class="theme-input theme-input--wide"
-                    placeholder="再次输入密码"
+                    placeholder="{{ _('admin.placeholders.passwordConfirm') }}"
                   />
                 </div>
               </div>
               <div class="theme-form__footer theme-form__footer--center">
                 <button type="submit" class="theme-button theme-button--solid">
-                  创建用户
+                  {{ _('admin.buttons.createUser') }}
                 </button>
               </div>
             </form>
@@ -394,9 +424,11 @@
         </section>
         <section class="theme-card">
           <div class="theme-card__header">
-            <h2 class="theme-card__title">用户列表</h2>
+            <h2 class="theme-card__title">
+              {{ _('admin.sections.userList.title') }}
+            </h2>
             <p class="theme-card__subtitle">
-              查看平台用户及权限，支持编辑资料或删除用户。
+              {{ _('admin.sections.userList.subtitle') }}
             </p>
           </div>
           <div
@@ -415,9 +447,11 @@
         {% include "admin/partials/settings_card.html" %}
         <section class="theme-card">
           <div class="theme-card__header">
-            <h2 class="theme-card__title">管理子域屏蔽名单</h2>
+            <h2 class="theme-card__title">
+              {{ _('admin.sections.blacklist.title') }}
+            </h2>
             <p class="theme-card__subtitle">
-              使用空格分隔多个子域前缀，保存后普通用户将无法使用这些前缀。
+              {{ _('admin.sections.blacklist.subtitle') }}
             </p>
           </div>
           <div class="theme-card__body">
@@ -431,21 +465,23 @@
               hx-swap="innerHTML"
             >
               <div class="theme-field theme-form__span-full theme-field--mobile-condensed theme-field--wide-desktop">
-                <label for="subdomain-blacklist-labels" class="theme-label">屏蔽前缀列表</label>
+                <label for="subdomain-blacklist-labels" class="theme-label"
+                  >{{ _('admin.labels.blacklist') }}</label
+                >
                 <textarea
                   id="subdomain-blacklist-labels"
                   name="labels"
                   class="theme-input theme-textarea"
                   rows="4"
-                  placeholder="例如：www api admin"
+                  placeholder="{{ _('admin.placeholders.blacklist') }}"
                   spellcheck="false">{{ subdomain_blacklist_text }}</textarea>
               </div>
               <p class="theme-help-text">
-                使用空格分隔多个子域前缀，管理员可随时调整；普通用户创建或修改子域时将受到限制。
+                {{ _('admin.sections.blacklist.helper') }}
               </p>
               <div class="theme-form__footer theme-form__footer--center">
                 <button type="submit" class="theme-button theme-button--solid">
-                  保存屏蔽名单
+                  {{ _('admin.sections.blacklist.button') }}
                 </button>
               </div>
             </form>

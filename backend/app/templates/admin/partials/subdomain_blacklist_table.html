@@ -2,11 +2,13 @@
 <table class="theme-table">
   <thead>
     <tr>
-      <th scope="col">子域前缀</th>
-      <th scope="col">创建时间</th>
+      <th scope="col">{{ _('admin.tables.headers.subdomainPrefix') }}</th>
+      <th scope="col">{{ _('admin.tables.headers.createdAt') }}</th>
       <th scope="col" class="theme-table__col-actions">
         <span class="theme-table__col-actions-label">
-          <span class="theme-table__col-actions-text">操作</span>
+          <span class="theme-table__col-actions-text"
+            >{{ _('admin.tables.headers.actions') }}</span
+          >
         </span>
       </th>
     </tr>
@@ -29,10 +31,10 @@
           hx-delete="/api/subdomain-blacklist/{{ item.id }}"
           hx-target="#subdomain-blacklist-feedback"
           hx-swap="innerHTML"
-          hx-confirm="确认移除该屏蔽前缀？"
+          hx-confirm="{{ _('admin.confirmations.deleteBlacklist') }}"
           data-success-event="refresh-subdomain-blacklist"
         >
-          删除
+          {{ _('admin.buttons.delete') }}
         </button>
       </td>
     </tr>
@@ -41,6 +43,6 @@
 </table>
 {% else %}
 <div class="theme-table__empty">
-  暂无屏蔽名单，可在上方表单添加受限子域前缀。
+  {{ _('admin.tables.empty.blacklist')|safe }}
 </div>
 {% endif %}

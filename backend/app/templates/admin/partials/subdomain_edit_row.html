@@ -13,13 +13,15 @@
           {% set host_parts = item.host.split('.', 1) %}
           {% set host_prefix = host_parts[0] %}
           <div class="theme-field__header">
-            <label for="host-{{ item.id }}" class="theme-label">子域</label>
+            <label for="host-{{ item.id }}" class="theme-label"
+              >{{ _('admin.labels.subdomain') }}</label
+            >
             <select
               id="subdomain-domain-{{ item.id }}"
               name="domain"
               class="theme-select theme-select--inline"
               data-domain-select-source
-              aria-label="选择域名"
+              aria-label="{{ _('admin.aria.selectDomain') }}"
               {% if not current_user.is_admin %}disabled{% endif %}
             >
               {% for domain in managed_domains %}
@@ -51,7 +53,7 @@
               spellcheck="false"
               data-domain-input-field
               pattern="^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$"
-              title="仅允许小写字母、数字或连字符，首尾需为字母或数字"
+              title="{{ _('admin.validation.slugPattern') }}"
             />
             <span
               class="theme-input-affix__addon theme-input-affix__addon--suffix"
@@ -61,7 +63,9 @@
           </div>
         </div>
         <div class="theme-field">
-          <label for="code-{{ item.id }}" class="theme-label">状态码</label>
+          <label for="code-{{ item.id }}" class="theme-label"
+            >{{ _('admin.labels.statusCode') }}</label
+          >
           <select id="code-{{ item.id }}" name="code" class="theme-select" required>
             {% for option in subdomain_code_options %}
             <option value="{{ option }}" {% if option == item.code %}selected{% endif %}>{{ option }}</option>
@@ -69,7 +73,9 @@
           </select>
         </div>
         <div class="theme-field theme-form__span-full theme-field--constrained theme-field--mobile-condensed">
-          <label for="target-{{ item.id }}" class="theme-label">目标地址</label>
+          <label for="target-{{ item.id }}" class="theme-label"
+            >{{ _('admin.labels.targetUrl') }}</label
+          >
           <input
             id="target-{{ item.id }}"
             name="target_url"
@@ -81,7 +87,7 @@
         </div>
       </div>
       <div class="theme-form__footer">
-        <p class="theme-helper">更新后会覆盖现有跳转配置并刷新列表。</p>
+        <p class="theme-helper">{{ _('admin.helpers.updateSubdomain') }}</p>
         <div class="theme-form__actions">
           <button
             type="button"
@@ -90,10 +96,10 @@
             hx-target="closest tr"
             hx-swap="outerHTML"
           >
-            取消
+            {{ _('admin.buttons.cancel') }}
           </button>
           <button type="submit" class="theme-button theme-button--solid theme-button--sm">
-            保存
+            {{ _('admin.buttons.save') }}
           </button>
         </div>
       </div>

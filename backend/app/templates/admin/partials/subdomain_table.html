@@ -2,17 +2,21 @@
 <table class="theme-table">
   <thead>
     <tr>
-      <th scope="col">子域</th>
-      <th scope="col" class="theme-table__col-target">目标地址</th>
-      <th scope="col">状态码</th>
-      <th scope="col">访问次数</th>
-      <th scope="col">创建时间</th>
+      <th scope="col">{{ _('admin.tables.headers.subdomain') }}</th>
+      <th scope="col" class="theme-table__col-target">
+        {{ _('admin.tables.headers.targetUrl') }}
+      </th>
+      <th scope="col">{{ _('admin.tables.headers.statusCode') }}</th>
+      <th scope="col">{{ _('admin.tables.headers.visits') }}</th>
+      <th scope="col">{{ _('admin.tables.headers.createdAt') }}</th>
       {% if show_user_column %}
-      <th scope="col">用户</th>
+      <th scope="col">{{ _('admin.tables.headers.user') }}</th>
       {% endif %}
       <th scope="col" class="theme-table__col-actions">
         <span class="theme-table__col-actions-label">
-          <span class="theme-table__col-actions-text">操作</span>
+          <span class="theme-table__col-actions-text"
+            >{{ _('admin.tables.headers.actions') }}</span
+          >
         </span>
       </th>
     </tr>
@@ -25,6 +29,6 @@
 </table>
 {% else %}
 <div class="theme-table__empty">
-  暂无子域配置，可通过上方表单或 <code>/api/subdomains</code> 接口创建。
+  {{ _('admin.tables.empty.subdomains')|safe }}
 </div>
 {% endif %}
