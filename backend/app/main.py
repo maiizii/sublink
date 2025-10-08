@@ -488,6 +488,21 @@ def _translate_validation_message(message: str) -> str:
     return message
 
 
+def _translate_field_name(field: str) -> str:
+    """将字段标识转换为更友好的中文标签。"""
+
+    mapping = {
+        "code": "短链代码",
+        "host": "子域前缀",
+        "labels": "屏蔽前缀列表",
+        "new_password": "新密码",
+        "password": "密码",
+        "target_url": "目标地址",
+        "username": "用户名",
+    }
+    return mapping.get(field, field)
+
+
 def _format_validation_errors(detail: Any) -> str:
     """将 Pydantic 错误信息转换为可读字符串。"""
 
@@ -505,6 +520,7 @@ def _format_validation_errors(detail: Any) -> str:
                 ),
                 "请求",
             )
+            field = _translate_field_name(field)
             raw_message = item.get("msg", "输入不合法")
             message = _translate_validation_message(str(raw_message))
             messages.append(f"{field}: {message}")
