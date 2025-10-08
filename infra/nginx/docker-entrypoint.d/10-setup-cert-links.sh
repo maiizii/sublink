@@ -65,6 +65,33 @@ link_certificates() {
     exit 0
 }
 
+generate_self_signed() {
+    if ! command -v openssl >/dev/null 2>&1; then
+        echo "[entrypoint] 未找到 openssl，无法生成自签名证书" >&2
+        exit 1
+    fi
+
+    subject="${SELF_SIGNED_CERT_SUBJECT:-/CN=yet.la}"
+    days="${SELF_SIGNED_CERT_DAYS:-7}"
+
+    echo "[entrypoint] 未找到有效证书，正在生成自签名证书 (有效期 ${days} 天)" >&2
+    openssl req \
+        -x509 -nodes -newkey rsa:2048 \
+        -keyout "$PRIVATE_KEY" \
+        -out "$FULLCHAIN" \
+        -days "$days" \
+        -subj "$subject" \
+        >/dev/null 2>&1
+
+    if [ ! -f "$FULLCHAIN" ] || [ ! -f "$PRIVATE_KEY" ]; then
+        echo "[entrypoint] 自签名证书生成失败" >&2
+        exit 1
+    fi
+
+    echo "[entrypoint] 已生成自签名证书: $FULLCHAIN" >&2
+    exit 0
+}
+
 ensure_target_dir
 
 if [ -f "$FULLCHAIN" ] && [ -f "$PRIVATE_KEY" ]; then
@@ -74,22 +101,24 @@ fi
 
 if [ ! -d "$SOURCE_ROOT" ]; then
     echo "[entrypoint] 证书源目录不存在: $SOURCE_ROOT" >&2
-    exit 1
+    SOURCE_ROOT=""
 fi
 
-# 首先检查源目录根路径
-candidate_pair="$(find_cert_files "$SOURCE_ROOT")"
-if [ -n "$candidate_pair" ]; then
-    link_certificates "${candidate_pair%|*}" "${candidate_pair#*|}"
-fi
-
-# 遍历源目录下的子目录，寻找常见的证书文件命名方式
-for candidate_dir in "$SOURCE_ROOT"/*; do
-    candidate_pair="$(find_cert_files "$candidate_dir")"
+if [ -n "$SOURCE_ROOT" ]; then
+    # 首先检查源目录根路径
+    candidate_pair="$(find_cert_files "$SOURCE_ROOT")"
     if [ -n "$candidate_pair" ]; then
         link_certificates "${candidate_pair%|*}" "${candidate_pair#*|}"
     fi
-done
 
-echo "[entrypoint] 未找到 TLS 证书，请确认 $SOURCE_ROOT 下存在 fullchain/private 文件" >&2
-exit 1
+    # 遍历源目录下的子目录，寻找常见的证书文件命名方式
+    for candidate_dir in "$SOURCE_ROOT"/*; do
+        candidate_pair="$(find_cert_files "$candidate_dir")"
+        if [ -n "$candidate_pair" ]; then
+            link_certificates "${candidate_pair%|*}" "${candidate_pair#*|}"
+        fi
+    done
+fi
+
+# 若没有可用证书，则生成自签名证书，避免容器直接退出。
+generate_self_signed
