@@ -3,7 +3,7 @@
 自托管的 yet.la 域名跳转管理平台，提供受 HTTP Basic 保护的管理后台与 API，用于维护子域名路由与短链接。Cloudflare 负责 DNS 与 TLS
 终止，Nginx 统一接受公网流量并转发到 FastAPI 后端。
 
-> 当前版本：**v1.10.8.2** —— 管理员可集中维护子域屏蔽名单并一次性更新保留前缀，普通账号在创建或修改跳转时会校验前缀长度与受限列表，避免占用关键域名。
+> 当前版本：**v1.10.8.2** —— 管理员可集中维护子域屏蔽名单并一次性更新保留前缀，也能在站点设置中维护「管理域名」列表；普通账号在创建或修改跳转时会校验前缀长度、受限列表与可用域名，避免占用关键资源。
 
 ## 目录
 
@@ -17,6 +17,8 @@
 - [证书与 Nginx 配置](#证书与-nginx-配置)
 - [Cloudflare 设置](#cloudflare-设置)
 - [部署完成后的使用方式](#部署完成后的使用方式)
+- [子域屏蔽名单与长度限制](#子域屏蔽名单与长度限制)
+- [管理域名列表与短链域控制](#管理域名列表与短链域控制)
 - [API 说明与示例 curl](#api-说明与示例-curl)
 - [环境变量](#环境变量)
 - [数据存储](#数据存储)
@@ -44,6 +46,7 @@
 - **认证后台 + API**：`backend/app/main.py` 提供 HTMX 管理界面及 REST API，所有写操作需登录（支持 HTTP Basic 或后台表单）。
 - **多用户权限管理**：`backend/app/models.py` 中新增 `users` 表，支持区分管理员与普通用户，并在后台界面完成用户 CRUD 与密码管理。
 - **子域屏蔽名单管控**：`backend/app/subdomain_service.py` 会在启动时写入默认的保留前缀列表，并通过 `/api/subdomain-blacklist` 提供增删改查接口，管理员可自定义限制普通用户可用的子域。
+- **多域名统一管理**：`backend/app/settings_service.py` 负责持久化 `managed_domains`，允许短链与访客跳转覆盖多个域名，并自动生成主域与 `www.` 映射。
 - **部署脚本**：`docker-compose*.yml` 与 `infra/nginx/docker-entrypoint.d/` 负责容器化部署与证书挂载自检。
 
 更多背景信息请参阅 [docs/NGINX_SUBDOMAIN_ROUTING.md](docs/NGINX_SUBDOMAIN_ROUTING.md)。该文档结合最新的生产配置，说明了如何使用 Nginx 通过数据库驱动的规则完成泛域名跳转。
@@ -68,7 +71,7 @@ $ docker compose up -d --build
 
 Nginx 默认监听 `80/443`，HTTP 请求统一 301 跳转至 HTTPS 并转发至后端 `backend:8000`。
 
-启动完成后，可使用默认管理员账号 `admin/admin` 登录 `https://<你的域名>/admin`，并在「设置」页更新基础域名、短链默认长度、路径前缀以及 Logo/Icon。所有配置会持久化到数据库，后续无需维护额外的 `.env` 文件。
+启动完成后，可使用默认管理员账号 `admin/admin` 登录 `https://<你的域名>/admin`，并在「设置」页更新基础域名、管理域名列表、短链默认长度、路径前缀以及 Logo/Icon。所有配置会持久化到数据库，后续无需维护额外的 `.env` 文件。
 
 ## 一键命令
 
@@ -249,7 +252,7 @@ server {
 - 入口：`https://<你的域名>/admin`
 - 认证：支持登录页表单或 HTTP Basic，两者都会将身份信息写入服务器端会话；默认凭据为 `admin/admin`（可通过环境变量覆盖或在后台修改）。
 - 功能：通过 HTMX 调用 `/api/links`、`/api/subdomains` 与 `/api/users` 完成 CRUD，并提供「修改密码」「设置」入口；界面组件在移动端下自动折叠为单列视图，便于手机端运维。
-- 设置页：管理员可调整基础域名、短链默认长度、路径前缀以及站点的 Logo/Icon，所有变更即时写入数据库并影响前端展示与访问逻辑。
+- 设置页：管理员可调整基础域名、管理域名列表、短链默认长度、路径前缀以及站点的 Logo/Icon，所有变更即时写入数据库并影响前端展示与访问逻辑。
 - 屏蔽名单：设置页新增「管理子域屏蔽名单」卡片，可批量维护保留前缀并实时刷新表格，普通用户提交与修改子域时会自动校验。
 
 ### 访客访问
@@ -263,6 +266,13 @@ server {
 - **界面与 API 管控**：管理员可在后台「设置」页直接编辑屏蔽名单文本框，或通过 `/api/subdomain-blacklist` 系列接口批量同步；保存后相关 HTMX 片段会自动刷新，列表保持最新状态。
 - **普通账号限制**：非管理员创建或修改子域时，后端会校验前缀长度需在 3-20 个字符之间，并拒绝使用屏蔽名单中的任何前缀；管理员在必要时可绕过限制并协助调整目标域名。
 
+## 管理域名列表与短链域控制
+
+- **统一管理域名**：`backend/app/settings_service.py` 将 `site_settings.managed_domains` 作为空格分隔的域名集合进行持久化，首个域名视为平台主域，其余域名可用于短链跳转与访客访问。
+- **自动归一化**：提交的域名会去掉协议、路径与大小写差异，并去重后回写数据库；系统同时生成 `www.` 互通的映射，确保 `example.com` 与 `www.example.com` 都可命中短链。
+- **创建短链**：后台表单与 `/api/links` 接口支持传入 `domain` 字段选择要使用的域名，留空则默认采用主域名。域名必须存在于管理列表中，普通用户不可越权创建其他域名的短链。
+- **部署初始化**：通过环境变量 `BASE_DOMAIN` 可一次性写入多个初始域名（以空格或逗号分隔），容器首次启动时会自动归一化并保存到数据库，可在后台「设置」页继续调整。
+
 ## API 说明与示例 curl
 
 `backend/app/main.py` 提供以下接口：
@@ -273,7 +283,7 @@ server {
 | GET | `/routes` | 查询所有子域跳转规则 | 无 | 200 |
 | GET | `/api/links` | 列出短链接 | 需要登录 | 200 |
 | POST | `/api/links` | 新增短链接（`code` 为空时自动生成） | 需要登录 | 201 / 409 |
-| PUT | `/api/links/{id}` | 更新短链接（支持修改 code 与目标地址） | 需要登录 | 200 / 404 / 409 |
+| PUT | `/api/links/{id}` | 更新短链接（支持修改 code、域名与目标地址） | 需要登录 | 200 / 404 / 409 |
 | DELETE | `/api/links/{id}` | 删除短链接 | 需要登录 | 204 / 404 |
 | GET | `/api/subdomains` | 列出子域跳转 | 需要登录 | 200 |
 | POST | `/api/subdomains` | 新增子域跳转（`host` 为完整域名） | 需要登录 | 201 / 409 |
@@ -299,7 +309,7 @@ server {
 # JSON 请求体
 curl -sk -u admin:changeme \
   -H "Content-Type: application/json" \
-  -d '{"target_url":"https://example.com/landing","code":"promo"}' \
+  -d '{"target_url":"https://example.com/landing","code":"promo","domain":"go.example.com"}' \
   https://yet.la/api/links
 
 # application/x-www-form-urlencoded
@@ -318,6 +328,7 @@ curl -sk -u admin:changeme \
 curl -sk -u admin:changeme \
   -F "target_url=https://example.org/signup" \
   -F "code=winter" \
+  -F "domain=go.yet.la" \
   https://yet.la/api/links
 ```
 
@@ -339,7 +350,7 @@ curl -sk -u admin:changeme \
 | --- | --- |
 | `ADMIN_USER` | 初始管理员用户名（默认 `admin`，启动后会写入数据库）。 |
 | `ADMIN_PASS` | 初始管理员密码（默认 `admin`，建议首登后修改）。 |
-| `BASE_DOMAIN` | （可选）首次初始化时的基础域名，例如 `yet.la`，后续请在后台设置页修改。 |
+| `BASE_DOMAIN` | （可选）首次初始化时的管理域名列表，例如 `yet.la go.yet.la` 或 `yet.la,go.yet.la`；首个域名会作为主域名写入数据库。 |
 | `SHORT_CODE_LEN` | （可选）首次初始化时的短链默认长度，后台设置页可随时调整。 |
 | `SHORT_LINK_PATH` | （可选）首次初始化时的短链路径前缀，例如 `/` 或 `/r/`。 |
 | `SITE_LOGO_URL` | （可选）首次初始化时的站点 Logo 地址。 |

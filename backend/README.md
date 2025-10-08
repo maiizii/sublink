@@ -5,6 +5,7 @@
 - 提供受 HTTP Basic 保护的管理后台（基于 HTMX）和 REST API；
 - 维护短链接与子域跳转的数据库模型，并统计命中次数；
 - 为公共入口提供重定向逻辑（根据 Host 或短链 code 返回 30x）。
+- 允许管理员维护多域名列表与子域屏蔽名单，所有校验逻辑在后端统一执行。
 
 ## 本地运行
 
@@ -22,6 +23,8 @@ uvicorn app.main:app --reload --port 8000
 
 若需自定义环境变量，可在运行前导出 `DATABASE_URL`、`SHORT_CODE_LEN`、`SESSION_SECRET` 等配置，详情参见仓库根目录的 `README.md`。
 
+> 提示：`BASE_DOMAIN` 支持以空格或逗号分隔多个域名，首次启动时会写入 `site_settings.managed_domains` 表；创建短链时只能选择这些域名。
+
 ## 主要模块
 
 - `app/main.py`：FastAPI 应用入口，定义 API、管理后台路由以及公共重定向逻辑。
@@ -29,7 +32,16 @@ uvicorn app.main:app --reload --port 8000
 - `app/models.py`：SQLAlchemy 模型与引擎配置，默认使用 SQLite。
 - `app/schemas.py`：Pydantic 模型，统一请求/响应数据结构。
 - `app/deps.py`：依赖注入与 Basic Auth 校验。
+- `app/settings_service.py`：站点设置与多域名归一化逻辑，含短链前缀构建等辅助函数。
+- `app/subdomain_service.py`：子域屏蔽名单与子域校验相关的服务函数。
+- `app/validators.py`：复用的格式校验工具（域名、短链编码等）。
 - `tests/`：Pytest 测试覆盖主要 API 与数据流。
+
+## 站点设置与管理域名
+
+- `GET /api/settings` 与 `PUT /api/settings` 返回/接收 `managed_domains` 字段，使用空格分隔的域名字符串；首个域名视为主域名。
+- 系统会在保存时归一化协议、`www.` 前缀与大小写，并去重后写回数据库，同时生成互通的短链主机映射。
+- 在创建或更新短链时，可通过 `domain` 字段选择归属域；若为空则默认使用主域名，普通用户不能越权操作列表之外的域名。
 
 ## 测试
 
