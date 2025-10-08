@@ -92,13 +92,29 @@ def test_subdomain_blacklist_blocks_creation(client: "SimpleClient") -> None:
     )
     assert entry.status_code == 201
 
+    user_payload = {
+        "username": "blockeduser",
+        "email": "blockeduser@example.com",
+        "password": "blockedpass",
+        "is_admin": False,
+    }
+    client.post("/api/users", json=user_payload, auth=ADMIN_AUTH)
+    user_auth = ("blockeduser", "blockedpass")
+
     denied = client.post(
         "/api/subdomains",
         json={"host": "blocked.test", "target_url": "https://example.com/blocked"},
-        auth=ADMIN_AUTH,
+        auth=user_auth,
     )
     assert denied.status_code == 422
     assert denied.json() == {"detail": "子域前缀已在黑名单中"}
+
+    allowed = client.post(
+        "/api/subdomains",
+        json={"host": "blocked.test", "target_url": "https://example.com/allowed"},
+        auth=ADMIN_AUTH,
+    )
+    assert allowed.status_code == 201
 
     listing = client.get("/api/subdomain-blacklist", auth=ADMIN_AUTH)
     assert listing.status_code == 200
@@ -110,12 +126,27 @@ def test_subdomain_blacklist_blocks_creation(client: "SimpleClient") -> None:
     )
     assert delete.status_code == 204
 
+    created = allowed.json()
+    client.delete(f"/api/subdomains/{created['id']}", auth=ADMIN_AUTH)
+
 
 def test_subdomain_blacklist_blocks_updates(client: "SimpleClient") -> None:
+    client.post(
+        "/api/users",
+        json={
+            "username": "safeowner",
+            "email": "safeowner@example.com",
+            "password": "safeowner",
+            "is_admin": False,
+        },
+        auth=ADMIN_AUTH,
+    )
+    owner_auth = ("safeowner", "safeowner")
+
     redirect = client.post(
         "/api/subdomains",
         json={"host": "safe.test", "target_url": "https://example.com/safe"},
-        auth=ADMIN_AUTH,
+        auth=owner_auth,
     ).json()
 
     client.post(
@@ -127,10 +158,88 @@ def test_subdomain_blacklist_blocks_updates(client: "SimpleClient") -> None:
     response = client.put(
         f"/api/subdomains/{redirect['id']}",
         json={"host": "blocked.test", "target_url": "https://example.com/new", "code": 302},
-        auth=ADMIN_AUTH,
+        auth=owner_auth,
     )
     assert response.status_code == 422
     assert response.json() == {"detail": "子域前缀已在黑名单中"}
+
+    admin_update = client.put(
+        f"/api/subdomains/{redirect['id']}",
+        json={"host": "blocked.test", "target_url": "https://example.com/new", "code": 302},
+        auth=ADMIN_AUTH,
+    )
+    assert admin_update.status_code == 200
+    assert admin_update.json()["host"] == "blocked.test"
+
+    blacklist_listing = client.get("/api/subdomain-blacklist", auth=ADMIN_AUTH).json()
+    blocked_entry = next(item for item in blacklist_listing if item["label"] == "blocked")
+    client.delete(f"/api/subdomain-blacklist/{blocked_entry['id']}", auth=ADMIN_AUTH)
+
+    client.delete(f"/api/subdomains/{redirect['id']}", auth=ADMIN_AUTH)
+
+
+def test_non_admin_subdomain_length_enforced(client: "SimpleClient") -> None:
+    client.post(
+        "/api/users",
+        json={
+            "username": "shortprefix",
+            "email": "shortprefix@example.com",
+            "password": "shortpass",
+            "is_admin": False,
+        },
+        auth=ADMIN_AUTH,
+    )
+    user_auth = ("shortprefix", "shortpass")
+
+    denied = client.post(
+        "/api/subdomains",
+        json={"host": "xy.test", "target_url": "https://example.com/too-short"},
+        auth=user_auth,
+    )
+    assert denied.status_code == 422
+    assert denied.json() == {"detail": "子域前缀长度需为 3-20 个字符"}
+
+
+def test_admin_allows_short_subdomain_prefix(client: "SimpleClient") -> None:
+    response = client.post(
+        "/api/subdomains",
+        json={"host": "xy.test", "target_url": "https://example.com/admin"},
+        auth=ADMIN_AUTH,
+    )
+    assert response.status_code == 201
+    created = response.json()
+    assert created["host"] == "xy.test"
+
+    client.delete(f"/api/subdomains/{created['id']}", auth=ADMIN_AUTH)
+
+
+def test_admin_can_replace_subdomain_blacklist(client: "SimpleClient") -> None:
+    original_listing = client.get("/api/subdomain-blacklist", auth=ADMIN_AUTH)
+    assert original_listing.status_code == 200
+    original_payload = original_listing.json()
+    original_labels = " ".join(item["label"] for item in original_payload)
+    existing_labels = {item["label"] for item in original_payload}
+    assert {"www", "mail", "api"}.issubset(existing_labels)
+
+    try:
+        response = client.put(
+            "/api/subdomain-blacklist",
+            json={"labels": "alpha beta beta"},
+            auth=ADMIN_AUTH,
+        )
+        assert response.status_code == 200
+        payload = response.json()
+        assert [entry["label"] for entry in payload] == ["alpha", "beta"]
+
+        refreshed = client.get("/api/subdomain-blacklist", auth=ADMIN_AUTH)
+        assert refreshed.status_code == 200
+        assert {item["label"] for item in refreshed.json()} == {"alpha", "beta"}
+    finally:
+        client.put(
+            "/api/subdomain-blacklist",
+            json={"labels": original_labels},
+            auth=ADMIN_AUTH,
+        )
 
 
 def test_host_redirect_status_codes(client: "SimpleClient") -> None:
@@ -241,7 +350,7 @@ def test_subdomains_are_scoped_by_user(client: "SimpleClient") -> None:
     user_auth = ("charlie", "charliepw")
     client.post(
         "/api/subdomains",
-        json={"host": "user.test", "target_url": "https://user.example.com"},
+        json={"host": "member.test", "target_url": "https://user.example.com"},
         auth=user_auth,
     )
 
@@ -249,11 +358,11 @@ def test_subdomains_are_scoped_by_user(client: "SimpleClient") -> None:
     assert user_listing.status_code == 200
     user_records = user_listing.json()
     assert len(user_records) == 1
-    assert user_records[0]["host"] == "user.test"
+    assert user_records[0]["host"] == "member.test"
 
     admin_listing = client.get("/api/subdomains", auth=ADMIN_AUTH)
     admin_hosts = {record["host"] for record in admin_listing.json()}
-    assert admin_hosts == {"admin-only.test", "user.test"}
+    assert admin_hosts == {"admin-only.test", "member.test"}
 
 
 def test_non_admin_cannot_modify_other_subdomains(client: "SimpleClient") -> None:

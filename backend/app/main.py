@@ -42,6 +42,7 @@ from .schemas import (
     SiteSettingsUpdate,
     SubdomainBlacklist as SubdomainBlacklistSchema,
     SubdomainBlacklistCreate,
+    SubdomainBlacklistBulkUpdate,
     SubdomainRedirect as SubdomainRedirectSchema,
     SubdomainRedirectCreate,
     SubdomainRedirectUpdate,
@@ -62,7 +63,8 @@ from .settings_service import (
     resolve_short_link_hosts,
     update_site_settings,
 )
-from .validators import extract_subdomain_label
+from .subdomain_service import ensure_default_subdomain_blacklist
+from .validators import extract_subdomain_label, normalize_slug
 
 MAX_CODE_ATTEMPTS = 10
 
@@ -115,6 +117,7 @@ def ensure_tables() -> None:
         ensure_user_association_columns()
         ensure_default_settings()
         ensure_default_admin()
+        ensure_default_subdomain_blacklist()
     except SQLAlchemyError as exc:  # pragma: no cover - 依赖数据库环境
         raise RuntimeError("failed to initialize database schema") from exc
 
@@ -217,6 +220,14 @@ async def _read_form_data(request: Request, content_type: str) -> dict[str, Any]
     return {key: value for key, value in form.multi_items()}
 
 
+def _ensure_slug_length(value: str, *, field: str) -> None:
+    if not 3 <= len(value) <= 20:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"{field}长度需为 3-20 个字符",
+        )
+
+
 def _ensure_short_link_permission(short_link: ShortLink, user: User) -> None:
     if user.is_admin:
         return
@@ -231,7 +242,9 @@ def _ensure_subdomain_permission(redirect: SubdomainRedirect, user: User) -> Non
         raise HTTPException(status.HTTP_403_FORBIDDEN, detail="无权操作该子域")
 
 
-def _ensure_subdomain_not_blacklisted(db: Session, host: str) -> None:
+def _ensure_subdomain_not_blacklisted(db: Session, host: str, user: User) -> None:
+    if user.is_admin:
+        return
     label = extract_subdomain_label(host)
     if not label:
         return
@@ -331,6 +344,24 @@ async def _parse_subdomain_blacklist_payload(
 
     try:
         return SubdomainBlacklistCreate.model_validate(data)
+    except ValidationError as exc:  # pragma: no cover - FastAPI 统一处理
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=_serialize_validation_detail(exc.errors()),
+        ) from exc
+
+
+async def _parse_subdomain_blacklist_bulk_payload(
+    request: Request,
+) -> SubdomainBlacklistBulkUpdate:
+    content_type = request.headers.get("content-type", "").lower()
+    if content_type.startswith("application/json"):
+        data = await request.json()
+    else:
+        data = await _read_form_data(request, content_type)
+
+    try:
+        return SubdomainBlacklistBulkUpdate.model_validate(data)
     except ValidationError as exc:  # pragma: no cover - FastAPI 统一处理
         raise HTTPException(
             status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -593,6 +624,8 @@ async def create_short_link(
 
     settings = get_site_settings(db)
     code = payload.code
+    if code and not current_user.is_admin:
+        _ensure_slug_length(code, field="短链编码")
     if code:
         exists = db.scalar(select(ShortLink).where(ShortLink.code == code))
         if exists:
@@ -666,6 +699,8 @@ async def update_short_link(
     _ensure_short_link_permission(short_link, current_user)
 
     if payload.code != short_link.code:
+        if not current_user.is_admin:
+            _ensure_slug_length(payload.code, field="短链编码")
         exists = db.scalar(select(ShortLink).where(ShortLink.code == payload.code))
         if exists:
             raise HTTPException(status.HTTP_409_CONFLICT, detail="短链接编码已存在")
@@ -726,7 +761,11 @@ async def create_subdomain(
     """创建子域跳转规则，Host 为完整域名。"""
 
     host = payload.host
-    _ensure_subdomain_not_blacklisted(db, host)
+    if not current_user.is_admin:
+        label = extract_subdomain_label(host)
+        if label:
+            _ensure_slug_length(label, field="子域前缀")
+    _ensure_subdomain_not_blacklisted(db, host, current_user)
     existing = db.scalar(select(SubdomainRedirect).where(SubdomainRedirect.host == host))
     if existing:
         raise HTTPException(status.HTTP_409_CONFLICT, detail="子域跳转已存在")
@@ -809,6 +848,66 @@ async def create_subdomain_blacklist_entry(
 
     response.headers["HX-Trigger"] = "refresh-subdomain-blacklist"
     return entry
+
+
+@app.put(
+    "/api/subdomain-blacklist",
+    response_model=list[SubdomainBlacklistSchema],
+)
+async def replace_subdomain_blacklist(
+    request: Request,
+    response: Response,
+    payload: SubdomainBlacklistBulkUpdate = Depends(
+        _parse_subdomain_blacklist_bulk_payload
+    ),
+    _admin: User = Depends(require_admin_user),
+    db: Session = Depends(get_db),
+) -> list[SubdomainBlacklist] | HTMLResponse:
+    """替换整份子域黑名单列表。"""
+
+    raw_labels = payload.labels.split()
+    normalized_labels: list[str] = []
+    seen: set[str] = set()
+    for raw in raw_labels:
+        try:
+            normalized = normalize_slug(raw, field="子域")
+        except ValueError as exc:  # pragma: no cover - 输入校验
+            raise HTTPException(
+                status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)
+            ) from exc
+        if normalized not in seen:
+            normalized_labels.append(normalized)
+            seen.add(normalized)
+
+    existing_entries = db.scalars(select(SubdomainBlacklist)).all()
+    existing_by_label = {entry.label: entry for entry in existing_entries}
+    desired = set(normalized_labels)
+
+    for entry in existing_entries:
+        if entry.label not in desired:
+            db.delete(entry)
+
+    for label in normalized_labels:
+        if label not in existing_by_label:
+            db.add(SubdomainBlacklist(label=label))
+
+    _commit_session(db)
+
+    updated_entries = db.scalars(
+        select(SubdomainBlacklist).order_by(SubdomainBlacklist.label.asc())
+    ).all()
+
+    hx_request = request.headers.get("hx-request") == "true"
+    if hx_request:
+        message = _feedback_html("子域黑名单已保存", tone="success")
+        return HTMLResponse(
+            message,
+            status_code=status.HTTP_200_OK,
+            headers={"HX-Trigger": "refresh-subdomain-blacklist"},
+        )
+
+    response.headers["HX-Trigger"] = "refresh-subdomain-blacklist"
+    return list(updated_entries)
 
 
 @app.delete("/api/subdomain-blacklist/{entry_id}")
@@ -1072,7 +1171,11 @@ async def update_subdomain(
 
     normalized_host = payload.host
     if normalized_host != redirect.host:
-        _ensure_subdomain_not_blacklisted(db, normalized_host)
+        if not current_user.is_admin:
+            label = extract_subdomain_label(normalized_host)
+            if label:
+                _ensure_slug_length(label, field="子域前缀")
+        _ensure_subdomain_not_blacklisted(db, normalized_host, current_user)
         exists = db.scalar(
             select(SubdomainRedirect).where(SubdomainRedirect.host == normalized_host)
         )

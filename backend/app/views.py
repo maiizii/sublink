@@ -29,6 +29,7 @@ from .models import (
     User,
 )
 from .settings_service import build_short_link_prefix, get_site_settings
+from .subdomain_service import format_blacklist_labels
 
 SUBDOMAIN_CODE_OPTIONS = [302, 301]
 
@@ -159,6 +160,7 @@ def admin_dashboard(
     short_links = _load_short_links(db, current_user)
     subdomains = _load_subdomains(db, current_user)
     users: list[User] = _load_users(db) if current_user.is_admin else []
+    blacklist_entries = _load_subdomain_blacklist(db) if current_user.is_admin else []
 
     context, settings = _context_with_settings(request, db, current_user)
     context.update(
@@ -173,9 +175,8 @@ def admin_dashboard(
             "subdomain_code_options": SUBDOMAIN_CODE_OPTIONS,
             "show_user_column": current_user.is_admin,
             "short_link_example": f"{context['short_link_prefix']}example",
-            "subdomain_blacklist": _load_subdomain_blacklist(db)
-            if current_user.is_admin
-            else [],
+            "subdomain_blacklist": blacklist_entries,
+            "subdomain_blacklist_text": format_blacklist_labels(blacklist_entries),
         }
     )
     if current_user.is_admin and active_tab == "settings":

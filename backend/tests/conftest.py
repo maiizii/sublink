@@ -23,12 +23,14 @@ from backend.app.models import (  # noqa: E402  pylint: disable=wrong-import-pos
     SessionLocal,
     ShortLink,
     SiteSettings,
+    SubdomainBlacklist,
     SubdomainRedirect,
     User,
     engine,
 )
 from backend.app.security import hash_password  # noqa: E402  pylint: disable=wrong-import-position
 from backend.app.settings_service import ensure_default_settings  # noqa: E402  pylint: disable=wrong-import-position
+from backend.app.subdomain_service import ensure_default_subdomain_blacklist  # noqa: E402  pylint: disable=wrong-import-position
 
 REDIRECT_STATUSES = {301, 302, 303, 307, 308}
 
@@ -298,6 +300,7 @@ def _prepare_database() -> None:
             )
         )
         session.commit()
+    ensure_default_subdomain_blacklist()
     yield
     Base.metadata.drop_all(bind=engine)
     if TEST_DB_PATH.exists():
@@ -309,6 +312,7 @@ def _clean_database() -> None:
     with SessionLocal() as session:
         session.execute(delete(ShortLink))
         session.execute(delete(SubdomainRedirect))
+        session.execute(delete(SubdomainBlacklist))
         session.execute(delete(SiteSettings))
         session.execute(delete(User).where(User.username != ADMIN_USERNAME))
         admin = session.scalar(select(User).where(User.username == ADMIN_USERNAME))
@@ -328,10 +332,12 @@ def _clean_database() -> None:
             )
         session.commit()
     ensure_default_settings()
+    ensure_default_subdomain_blacklist()
     yield
     with SessionLocal() as session:
         session.execute(delete(ShortLink))
         session.execute(delete(SubdomainRedirect))
+        session.execute(delete(SubdomainBlacklist))
         session.execute(delete(User).where(User.username != ADMIN_USERNAME))
         admin = session.scalar(select(User).where(User.username == ADMIN_USERNAME))
         if admin is not None:
@@ -349,6 +355,7 @@ def _clean_database() -> None:
                 )
             )
         session.commit()
+    ensure_default_subdomain_blacklist()
 
 
 @pytest.fixture()

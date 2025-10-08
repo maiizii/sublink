@@ -43,6 +43,42 @@ def test_create_short_link_invalid_code(client: "SimpleClient") -> None:
     assert any("短链编码" in item.get("msg", "") for item in detail)
 
 
+def test_admin_allows_long_short_code(client: "SimpleClient") -> None:
+    long_code = "adminlongshortcodevalue-1234567890"
+    response = client.post(
+        "/api/links",
+        json={"target_url": "https://example.com/admin", "code": long_code},
+        auth=ADMIN_AUTH,
+    )
+    assert response.status_code == 201
+    created = response.json()
+    assert created["code"] == long_code
+
+    client.delete(f"/api/links/{created['id']}", auth=ADMIN_AUTH)
+
+
+def test_non_admin_short_code_length_enforced(client: "SimpleClient") -> None:
+    client.post(
+        "/api/users",
+        json={
+            "username": "shortuser",
+            "email": "shortuser@example.com",
+            "password": "shortpass",
+            "is_admin": False,
+        },
+        auth=ADMIN_AUTH,
+    )
+    user_auth = ("shortuser", "shortpass")
+
+    denied = client.post(
+        "/api/links",
+        json={"target_url": "https://example.com/nonadmin", "code": "ab"},
+        auth=user_auth,
+    )
+    assert denied.status_code == 422
+    assert denied.json() == {"detail": "短链编码长度需为 3-20 个字符"}
+
+
 def test_redirect_short_link_and_hits(client: "SimpleClient") -> None:
     client.post(
         "/api/links",
