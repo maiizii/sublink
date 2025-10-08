@@ -98,10 +98,8 @@
                       autocomplete="off"
                       spellcheck="false"
                       placeholder="自动生成，可修改"
-                      pattern="^[a-z0-9](?:[a-z0-9-]{1,18}[a-z0-9])$"
-                      minlength="3"
-                      maxlength="20"
-                      title="仅允许小写字母、数字或连字符，首尾为字母或数字，长度 3-20"
+                      pattern="^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$"
+                      title="仅允许小写字母、数字或连字符，首尾需为字母或数字"
                     />
                   </div>
                 </div>
@@ -187,10 +185,8 @@
                       autocomplete="off"
                       spellcheck="false"
                       data-domain-input-field
-                      pattern="^[a-z0-9](?:[a-z0-9-]{1,18}[a-z0-9])$"
-                      minlength="3"
-                      maxlength="20"
-                      title="仅允许小写字母、数字或连字符，首尾为字母或数字，长度 3-20"
+                      pattern="^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$"
+                      title="仅允许小写字母、数字或连字符，首尾需为字母或数字"
                     />
                     <span class="theme-input-affix__addon theme-input-affix__addon--suffix">.{{ base_domain }}</span>
                     <input type="hidden" name="host" data-domain-input-hidden />
@@ -250,9 +246,9 @@
         {% if current_user and current_user.is_admin %}
         <section class="theme-card">
           <div class="theme-card__header">
-            <h2 class="theme-card__title">创建子域黑名单</h2>
+            <h2 class="theme-card__title">管理子域黑名单</h2>
             <p class="theme-card__subtitle">
-              添加受限前缀，阻止创建或修改到这些子域名。
+              使用空格分隔多个子域前缀，保存后普通用户将无法使用这些前缀。
             </p>
           </div>
           <div class="theme-card__body">
@@ -260,35 +256,27 @@
               class="theme-form"
               action="/api/subdomain-blacklist"
               method="post"
-              hx-post="/api/subdomain-blacklist"
+              hx-put="/api/subdomain-blacklist"
               hx-trigger="submit"
               hx-target="#subdomain-blacklist-feedback"
               hx-swap="innerHTML"
-              data-reset-on-success="true"
-              data-success-event="refresh-subdomain-blacklist"
             >
-              <div class="theme-form__grid theme-form__grid--two">
-                <div class="theme-field theme-form__span-full theme-field--mobile-condensed">
-                  <label for="blacklist-label" class="theme-label">子域前缀 *</label>
-                  <input
-                    id="blacklist-label"
-                    name="label"
-                    type="text"
-                    required
-                    class="theme-input theme-input--wide"
-                    placeholder="如 marketing"
-                    autocomplete="off"
-                    spellcheck="false"
-                    pattern="^[a-z0-9](?:[a-z0-9-]{1,18}[a-z0-9])$"
-                    minlength="3"
-                    maxlength="20"
-                    title="仅允许小写字母、数字或连字符，首尾为字母或数字，长度 3-20"
-                  />
-                </div>
+              <div class="theme-field theme-form__span-full theme-field--mobile-condensed">
+                <label for="subdomain-blacklist-labels" class="theme-label">屏蔽前缀列表</label>
+                <textarea
+                  id="subdomain-blacklist-labels"
+                  name="labels"
+                  class="theme-textarea"
+                  rows="4"
+                  placeholder="例如：www api admin"
+                  spellcheck="false">{{ subdomain_blacklist_text }}</textarea>
               </div>
+              <p class="theme-help-text">
+                使用空格分隔多个子域前缀，管理员可随时调整；普通用户创建或修改子域时将受到限制。
+              </p>
               <div class="theme-form__footer theme-form__footer--center">
                 <button type="submit" class="theme-button theme-button--solid">
-                  添加黑名单
+                  保存屏蔽列表
                 </button>
               </div>
             </form>
@@ -299,23 +287,6 @@
             role="status"
             aria-live="polite"
           ></div>
-        </section>
-        <section class="theme-card">
-          <div class="theme-card__header">
-            <h2 class="theme-card__title">子域黑名单列表</h2>
-            <p class="theme-card__subtitle">
-              当前受限制的子域前缀，命中将无法创建或修改。
-            </p>
-          </div>
-          <div
-            id="subdomain-blacklist-table"
-            class="theme-card__body theme-card__body--table"
-            hx-get="/admin/subdomains/blacklist/table"
-            hx-trigger="load, refresh-subdomain-blacklist from:body"
-            hx-swap="innerHTML"
-          >
-            {% include "admin/partials/subdomain_blacklist_table.html" %}
-          </div>
         </section>
         {% endif %}
       </div>
@@ -353,10 +324,8 @@
                       placeholder="如 alice"
                       autocomplete="off"
                       spellcheck="false"
-                      pattern="^[a-z0-9](?:[a-z0-9-]{1,18}[a-z0-9])$"
-                      minlength="3"
-                      maxlength="20"
-                      title="仅允许小写字母、数字或连字符，首尾为字母或数字，长度 3-20"
+                      pattern="^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$"
+                      title="仅允许小写字母、数字或连字符，首尾需为字母或数字"
                     />
                   </div>
                   <div class="theme-field theme-field--mobile-condensed">

@@ -79,6 +79,15 @@ class SubdomainBlacklistCreate(SubdomainBlacklistBase):
     pass
 
 
+class SubdomainBlacklistBulkUpdate(BaseModel):
+    labels: str = Field("", description="以空格分隔的子域前缀列表")
+
+    @field_validator("labels")
+    @classmethod
+    def _normalize_labels(cls, value: str) -> str:
+        return " ".join(value.split())
+
+
 class ShortLinkBase(BaseModel):
     target_url: str = Field(..., description="目标地址")
 
