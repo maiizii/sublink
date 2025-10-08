@@ -32,7 +32,6 @@ from .models import (
     ensure_subdomain_hits_column,
     ensure_user_association_columns,
     engine,
-    DEFAULT_SITE_DOMAIN,
 )
 from .schemas import (
     ShortLink as ShortLinkSchema,
@@ -59,6 +58,7 @@ from .settings_service import (
     build_short_link_prefix,
     ensure_default_settings,
     extract_short_link,
+    get_primary_site_domain,
     get_site_settings,
     resolve_short_link_hosts,
     update_site_settings,
@@ -1265,10 +1265,7 @@ def catch_all(
     short_link_hosts = resolve_short_link_hosts(settings)
     allow_short_link = host in short_link_hosts
 
-    fallback_domain = (settings.site_domain or "").strip()
-    if "://" in fallback_domain:
-        fallback_domain = fallback_domain.split("://", 1)[1]
-    fallback_domain = fallback_domain.strip("/") or DEFAULT_SITE_DOMAIN
+    fallback_domain = get_primary_site_domain(settings.site_domain).strip()
     if "/" in fallback_domain:
         fallback_domain = fallback_domain.split("/", 1)[0]
 

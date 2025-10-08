@@ -11,7 +11,21 @@
         <div class="theme-field">
           <label for="code-{{ item.id }}" class="theme-label">短链</label>
           <div class="theme-input-affix">
-            <span class="theme-input-affix__addon theme-input-affix__addon--prefix">{{ short_link_display_prefix }}</span>
+            <span class="theme-input-affix__addon theme-input-affix__addon--prefix">
+              <select
+                id="short-link-domain-{{ item.id }}"
+                class="theme-input-affix__select"
+                data-short-link-domain-select
+                aria-label="选择短链域名"
+              >
+                {% for domain in managed_domains %}
+                <option value="{{ domain }}">{{ domain }}</option>
+                {% endfor %}
+              </select>
+              <span class="theme-input-affix__suffix-text" data-short-link-domain-suffix>
+                {{ short_link_display_suffix }}
+              </span>
+            </span>
             <input
               id="code-{{ item.id }}"
               name="code"

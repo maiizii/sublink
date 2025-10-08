@@ -772,13 +772,25 @@
 
       const input = group.querySelector("[data-domain-input-field]");
       const hidden = group.querySelector("[data-domain-input-hidden]");
-      const rawSuffix = group.getAttribute("data-domain-suffix") || "";
-      const suffix = rawSuffix.trim();
+      const select = group.querySelector("[data-domain-input-select]");
+      const defaultSuffix = (group.getAttribute("data-domain-suffix") || "")
+        .trim()
+        .toLowerCase();
+
+      const resolveSuffix = () => {
+        if (select && select.value) {
+          return select.value.trim().toLowerCase();
+        }
+        return defaultSuffix;
+      };
 
       const updateValue = () => {
         if (!hidden) {
           return;
         }
+
+        const suffix = resolveSuffix();
+        group.dataset.domainSuffix = suffix;
 
         if (!input) {
           hidden.value = suffix;
@@ -806,6 +818,10 @@
 
       if (input) {
         input.addEventListener("input", updateValue);
+      }
+
+      if (select) {
+        select.addEventListener("change", updateValue);
       }
 
       const form = group.closest("form");

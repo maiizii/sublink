@@ -28,7 +28,12 @@ from .models import (
     SubdomainRedirect,
     User,
 )
-from .settings_service import build_short_link_prefix, get_site_settings
+from .settings_service import (
+    build_short_link_prefix,
+    get_primary_site_domain,
+    get_site_settings,
+    split_site_domain_values,
+)
 from .subdomain_service import format_blacklist_labels
 
 SUBDOMAIN_CODE_OPTIONS = [302, 301]
@@ -98,7 +103,9 @@ def _generate_short_link_suggestion(db: Session, length: int) -> str:
 def _base_context(
     request: Request, settings: SiteSettings, user: User | None = None
 ) -> dict[str, Any]:
-    base_domain = settings.site_domain.strip().strip("/") or settings.site_domain
+    managed_domains = split_site_domain_values(settings.site_domain)
+    primary_domain = get_primary_site_domain(settings.site_domain)
+    base_domain = primary_domain.strip().strip("/") or primary_domain
     base_url = f"https://{base_domain}".rstrip("/")
     short_link_prefix = build_short_link_prefix(settings)
     short_link_display_prefix = short_link_prefix
@@ -106,14 +113,20 @@ def _base_context(
         if short_link_display_prefix.startswith(scheme):
             short_link_display_prefix = short_link_display_prefix[len(scheme) :]
             break
+    short_link_display_suffix = short_link_display_prefix
+    if short_link_display_prefix.startswith(primary_domain):
+        short_link_display_suffix = short_link_display_prefix[len(primary_domain) :]
     return {
         "request": request,
         "base_domain": base_domain,
         "base_url": base_url,
         "short_link_prefix": short_link_prefix,
         "short_link_display_prefix": short_link_display_prefix,
+        "short_link_display_suffix": short_link_display_suffix,
         "short_code_length": settings.short_code_length,
         "site_settings": settings,
+        "managed_domains": managed_domains,
+        "primary_domain": primary_domain,
         "current_year": datetime.utcnow().year,
         "settings_feedback_html": None,
         "show_logout_button": True,
