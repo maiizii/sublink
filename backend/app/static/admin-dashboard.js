@@ -1,5 +1,5 @@
 (function () {
-  const THEME_STORAGE_KEY = "yetla-admin-theme";
+  const THEME_STORAGE_KEY = "sublink-admin-theme";
   const AVAILABLE_THEMES = ["aurora", "nebula"];
   const DEFAULT_THEME = "aurora";
   const RANDOM_CODE_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
@@ -1167,7 +1167,7 @@
 
   onReady(() => {
     const useFallback =
-      !window.htmx || window.htmx.__YETLA_USE_FALLBACK__ === true;
+      !window.htmx || window.htmx.__SUBLINK_USE_FALLBACK__ === true;
 
     if (
       useFallback &&

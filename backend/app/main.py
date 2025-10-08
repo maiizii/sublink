@@ -1,4 +1,4 @@
-"""FastAPI 应用，提供 yet.la 的短链接与子域跳转管理接口。"""
+"""FastAPI 应用，提供 SubLink（yet.la）的短链接与子域跳转管理接口。"""
 from __future__ import annotations
 
 import secrets
@@ -88,7 +88,7 @@ def _feedback_html(message: str, *, tone: str = "info") -> str:
     return f'<div class="theme-feedback__message {tone_class}">{message}</div>'
 
 app = FastAPI(
-    title="Yetla Redirect API",
+    title="SubLink Redirect API",
     description="管理短链接与子域跳转的受保护接口，并提供公共重定向入口。",
     version="0.2.0",
     docs_url=None,

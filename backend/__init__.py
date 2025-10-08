@@ -1,1 +1,1 @@
-"""Backend package for the yet.la management platform."""
+"""Backend package for the SubLink (yet.la) management platform."""

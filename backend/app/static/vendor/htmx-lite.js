@@ -3,7 +3,7 @@
     return;
   }
 
-  if (window.htmx && window.htmx.__YETLA_USE_FALLBACK__ !== true) {
+  if (window.htmx && window.htmx.__SUBLINK_USE_FALLBACK__ !== true) {
     return;
   }
 
@@ -54,7 +54,7 @@
     config: {
       useFallback: true,
     },
-    __YETLA_USE_FALLBACK__: true,
+    __SUBLINK_USE_FALLBACK__: true,
     trigger,
     onLoad,
     off: function () {},

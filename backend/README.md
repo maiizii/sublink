@@ -1,6 +1,6 @@
-# Yetla Backend
+# SubLink Backend
 
-`backend/` 目录包含 Yetla 平台的核心 FastAPI 服务，负责：
+`backend/` 目录包含 SubLink 平台的核心 FastAPI 服务，负责：
 
 - 提供受 HTTP Basic 保护的管理后台（基于 HTMX）和 REST API；
 - 维护短链接与子域跳转的数据库模型，并统计命中次数；

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Bootstrap script for a fresh Ubuntu 22.04 VPS to run yet.la stack.
+# Bootstrap script for a fresh Ubuntu 22.04 VPS to run the SubLink (yet.la) stack.
 set -euo pipefail
 
 if [[ ${EUID} -ne 0 ]]; then

@@ -1,6 +1,6 @@
 # Changelog
 
-本文件用于记录 yet.la 管理平台的变更。以下条目初始化了「服务端重定向」基线任务，方便后续迭代追踪。
+本文件用于记录 SubLink（yet.la）管理平台的变更。以下条目初始化了「服务端重定向」基线任务，方便后续迭代追踪。
 
 ## [v1.10.8.3] - 2025-10-15
 
@@ -46,7 +46,7 @@
 - README 新增「一键命令」章节，介绍上述快捷指令。
 
 ### 2025-10-06
-- 新增 `infra/nginx/conf.d/yetla.upstream.conf`，将容器内 Nginx 的入口统一代理到 `backend`。
+- 新增 `infra/nginx/conf.d/sublink.upstream.conf`，将容器内 Nginx 的入口统一代理到 `backend`。
 - 提供 `docker-compose.override.yml`，默认保留 `8080:80` 并可选开启 `80:80` 暴露端口。
 - README 补充部署章节，说明容器化 Nginx → backend 的统一流量入口。
 

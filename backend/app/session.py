@@ -11,8 +11,8 @@ from typing import Any
 
 from fastapi import Request, Response
 
-SESSION_COOKIE_NAME = "yetla_session"
-_SESSION_SECRET = os.getenv("SESSION_SECRET", os.getenv("ADMIN_PASS", "yetla-session")).encode("utf-8")
+SESSION_COOKIE_NAME = "sublink_session"
+_SESSION_SECRET = os.getenv("SESSION_SECRET", os.getenv("ADMIN_PASS", "sublink-session")).encode("utf-8")
 
 
 def _b64encode(data: bytes) -> str:
@@ -53,16 +53,16 @@ def deserialize_session(token: str | None) -> dict[str, Any]:
 
 
 def get_session(request: Request) -> dict[str, Any]:
-    cached = getattr(request.state, "_yetla_session", None)
+    cached = getattr(request.state, "_sublink_session", None)
     if cached is not None:
         return cached
     session = deserialize_session(request.cookies.get(SESSION_COOKIE_NAME))
-    request.state._yetla_session = session
+    request.state._sublink_session = session
     return session
 
 
 def set_session(response: Response, request: Request, data: dict[str, Any]) -> None:
-    request.state._yetla_session = data
+    request.state._sublink_session = data
     response.set_cookie(
         SESSION_COOKIE_NAME,
         serialize_session(data),
@@ -73,7 +73,7 @@ def set_session(response: Response, request: Request, data: dict[str, Any]) -> N
 
 
 def clear_session(response: Response, request: Request) -> None:
-    request.state._yetla_session = {}
+    request.state._sublink_session = {}
     response.delete_cookie(
         SESSION_COOKIE_NAME,
         path="/",
