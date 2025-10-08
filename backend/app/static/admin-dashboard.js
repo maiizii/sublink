@@ -772,8 +772,36 @@
 
       const input = group.querySelector("[data-domain-input-field]");
       const hidden = group.querySelector("[data-domain-input-hidden]");
-      const rawSuffix = group.getAttribute("data-domain-suffix") || "";
-      const suffix = rawSuffix.trim();
+      const suffixSpan = group.querySelector("[data-domain-input-suffix]");
+
+      const selectSelector = group.getAttribute("data-domain-select");
+      let select = null;
+      if (selectSelector) {
+        try {
+          select = document.querySelector(selectSelector);
+        } catch (error) {
+          select = null;
+        }
+      }
+      if (!select) {
+        const form = group.closest("form") || scope;
+        if (form instanceof Element) {
+          select = form.querySelector("[data-domain-select-source]");
+        }
+      }
+
+      const resolveSuffix = () => {
+        if (select instanceof HTMLSelectElement) {
+          const option = select.options[select.selectedIndex];
+          if (option) {
+            const suffixValue = option.getAttribute("data-domain-suffix");
+            const candidate = suffixValue || option.value || "";
+            return candidate.trim();
+          }
+        }
+        const rawSuffix = group.getAttribute("data-domain-suffix") || "";
+        return rawSuffix.trim();
+      };
 
       const updateValue = () => {
         if (!hidden) {
@@ -781,6 +809,7 @@
         }
 
         if (!input) {
+          const suffix = resolveSuffix();
           hidden.value = suffix;
           return;
         }
@@ -792,6 +821,11 @@
             input.value = normalized;
           }
           prefixValue = normalized;
+        }
+
+        const suffix = resolveSuffix();
+        if (suffixSpan instanceof HTMLElement) {
+          suffixSpan.textContent = suffix ? `.${suffix}` : "";
         }
 
         let fullValue = "";
@@ -808,6 +842,10 @@
         input.addEventListener("input", updateValue);
       }
 
+      if (select instanceof HTMLSelectElement) {
+        select.addEventListener("change", updateValue);
+      }
+
       const form = group.closest("form");
       if (form) {
         form.addEventListener("reset", () => {
@@ -818,6 +856,51 @@
       group.dataset.domainEnhanced = "true";
       group.__updateDomainValue = updateValue;
       updateValue();
+    });
+  }
+
+  function bindShortLinkDomainSelectors(root = document) {
+    const scope = root instanceof Element ? root : document;
+    const selects = scope.querySelectorAll("[data-short-link-domain]");
+
+    selects.forEach((select) => {
+      if (!(select instanceof HTMLSelectElement)) {
+        return;
+      }
+
+      if (select.dataset.shortLinkDomainEnhanced === "true") {
+        if (typeof select.__updateShortLinkPrefix === "function") {
+          select.__updateShortLinkPrefix();
+        }
+        return;
+      }
+
+      const resolveDisplayTarget = () => {
+        const selector = select.getAttribute("data-prefix-display") || "[data-short-link-prefix-display]";
+        const form = select.closest("form");
+        if (form instanceof Element) {
+          const scoped = form.querySelector(selector);
+          if (scoped) {
+            return scoped;
+          }
+        }
+        return document.querySelector(selector);
+      };
+
+      const displayTarget = resolveDisplayTarget();
+
+      const updateDisplay = () => {
+        const option = select.options[select.selectedIndex];
+        const display = option ? option.getAttribute("data-display") || option.value || "" : "";
+        if (displayTarget instanceof HTMLElement) {
+          displayTarget.textContent = display;
+        }
+      };
+
+      select.addEventListener("change", updateDisplay);
+      select.dataset.shortLinkDomainEnhanced = "true";
+      select.__updateShortLinkPrefix = updateDisplay;
+      updateDisplay();
     });
   }
 
@@ -1061,6 +1144,8 @@
       }
     });
 
+    bindShortLinkDomainSelectors(formLike);
+
     const randomInputs = formLike.querySelectorAll("[data-random-code='true']");
     randomInputs.forEach((input) => {
       if (!(input instanceof HTMLInputElement)) {
@@ -1075,6 +1160,7 @@
 
   function enhanceDynamicUI(root) {
     bindDomainInputs(root);
+    bindShortLinkDomainSelectors(root);
     bindCopyButtons(root);
     bindDetailsToggles(root);
   }

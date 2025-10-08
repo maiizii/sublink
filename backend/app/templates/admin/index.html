@@ -84,9 +84,35 @@
             >
               <div class="theme-form__grid theme-form__grid--two-fixed">
                 <div class="theme-field">
+                  <label for="short-link-domain" class="theme-label">域名 *</label>
+                  <select
+                    id="short-link-domain"
+                    name="domain"
+                    class="theme-select"
+                    data-short-link-domain
+                    data-prefix-display="[data-short-link-prefix-display]"
+                  >
+                    {% for domain in short_link_domains %}
+                    {% set option_prefix = short_link_prefix_map.get(domain, short_link_prefix) %}
+                    {% set option_display = short_link_display_prefix_map.get(domain, short_link_display_prefix) %}
+                    <option
+                      value="{{ domain }}"
+                      data-prefix="{{ option_prefix }}"
+                      data-display="{{ option_display }}"
+                      {% if domain == primary_domain %}selected{% endif %}
+                    >
+                      {{ domain }}
+                    </option>
+                    {% endfor %}
+                  </select>
+                </div>
+                <div class="theme-field">
                   <label for="code" class="theme-label">短链（可改）</label>
                   <div class="theme-input-affix">
-                    <span class="theme-input-affix__addon theme-input-affix__addon--prefix">{{ short_link_display_prefix }}</span>
+                    <span
+                      class="theme-input-affix__addon theme-input-affix__addon--prefix"
+                      data-short-link-prefix-display
+                    >{{ short_link_display_prefix }}</span>
                     <input
                       id="code"
                       name="code"
@@ -153,7 +179,7 @@
           <div class="theme-card__header">
             <h2 class="theme-card__title">创建子域</h2>
             <p class="theme-card__subtitle">
-              填写子域前缀即可，后缀 .{{ base_domain }} 将自动拼接；状态码默认为 302，支持在下拉菜单中切换。
+              填写子域前缀并选择域名，系统会自动拼接完整主机名；状态码默认为 302，可在下拉菜单中切换。
             </p>
           </div>
           <div class="theme-card__body">
@@ -170,11 +196,30 @@
             >
               <div class="theme-form__grid theme-form__grid--three">
                 <div class="theme-field">
+                  <label for="subdomain-domain" class="theme-label">域名 *</label>
+                  <select
+                    id="subdomain-domain"
+                    name="domain"
+                    class="theme-select"
+                    data-domain-select-source
+                  >
+                    {% for domain in managed_domains %}
+                    <option
+                      value="{{ domain }}"
+                      data-domain-suffix="{{ domain }}"
+                      {% if domain == primary_domain %}selected{% endif %}
+                    >
+                      {{ domain }}
+                    </option>
+                    {% endfor %}
+                  </select>
+                </div>
+                <div class="theme-field">
                   <label for="subdomain-prefix" class="theme-label">子域 *</label>
                   <div
                     class="theme-input-affix"
                     data-domain-input
-                    data-domain-suffix="{{ base_domain }}"
+                    data-domain-select="#subdomain-domain"
                   >
                     <input
                       id="subdomain-prefix"
@@ -188,7 +233,10 @@
                       pattern="^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$"
                       title="仅允许小写字母、数字或连字符，首尾需为字母或数字"
                     />
-                    <span class="theme-input-affix__addon theme-input-affix__addon--suffix">.{{ base_domain }}</span>
+                    <span
+                      class="theme-input-affix__addon theme-input-affix__addon--suffix"
+                      data-domain-input-suffix
+                    >.{{ primary_domain }}</span>
                     <input type="hidden" name="host" data-domain-input-hidden />
                   </div>
                 </div>

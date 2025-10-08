@@ -31,6 +31,20 @@ def normalize_site_domain(value: str | None) -> str:
     return raw or DEFAULT_SITE_DOMAIN
 
 
+def normalize_managed_domains(value: str | None) -> list[str]:
+    """Normalize a space separated list of managed domains."""
+
+    raw = (value or "").replace(",", " ")
+    domains: list[str] = []
+    for candidate in raw.split():
+        normalized = normalize_site_domain(candidate)
+        if normalized not in domains:
+            domains.append(normalized)
+    if not domains:
+        domains.append(DEFAULT_SITE_DOMAIN)
+    return domains
+
+
 def normalize_short_link_path(value: str | None) -> str:
     """Normalize the configured short link path to a canonical form."""
 
@@ -49,20 +63,40 @@ def normalize_short_link_path(value: str | None) -> str:
     return normalized
 
 
+def get_managed_domains(settings: SiteSettings) -> list[str]:
+    """Return the configured managed domains preserving order."""
+
+    domains = normalize_managed_domains(settings.managed_domains)
+    return domains
+
+
+def get_primary_domain(settings: SiteSettings) -> str:
+    """Return the primary managed domain for display and defaults."""
+
+    domains = get_managed_domains(settings)
+    return domains[0] if domains else DEFAULT_SITE_DOMAIN
+
+
+def resolve_short_link_host_map(settings: SiteSettings) -> dict[str, str]:
+    """Return a mapping of hostnames to the canonical managed domain."""
+
+    host_map: dict[str, str] = {}
+    for domain in get_managed_domains(settings):
+        canonical = domain.strip().lower()
+        if not canonical:
+            continue
+        host_map[canonical] = domain
+        if canonical.startswith("www."):
+            host_map[canonical[4:]] = domain
+        else:
+            host_map[f"www.{canonical}"] = domain
+    return {host: value for host, value in host_map.items() if host}
+
+
 def resolve_short_link_hosts(settings: SiteSettings) -> set[str]:
     """Return hostnames that should trigger short link lookups."""
 
-    canonical = (settings.site_domain or "").strip().lower()
-    if not canonical:
-        return set()
-
-    hosts = {canonical}
-    if canonical.startswith("www."):
-        hosts.add(canonical[4:])
-    else:
-        hosts.add(f"www.{canonical}")
-
-    return {host for host in hosts if host}
+    return set(resolve_short_link_host_map(settings).keys())
 
 
 def normalize_short_code_length(value: int | None) -> int:
@@ -93,8 +127,10 @@ def _default_settings_payload() -> dict[str, Any]:
         except ValueError:
             length = DEFAULT_SHORT_CODE_LENGTH
 
+    domains = normalize_managed_domains(env_domain)
     payload = {
-        "site_domain": normalize_site_domain(env_domain),
+        "site_domain": domains[0],
+        "managed_domains": " ".join(domains),
         "short_code_length": normalize_short_code_length(length),
         "short_link_path": normalize_short_link_path(env_short_path or DEFAULT_SHORT_LINK_PATH),
         "logo_url": normalize_asset_url(env_logo, DEFAULT_LOGO_URL),
@@ -121,6 +157,20 @@ def get_site_settings(db: Session) -> SiteSettings:
 
     settings = db.scalar(select(SiteSettings).order_by(SiteSettings.id).limit(1))
     if settings is not None:
+        domains = normalize_managed_domains(settings.managed_domains)
+        normalized = " ".join(domains)
+        primary = domains[0]
+        updated = False
+        if settings.managed_domains != normalized:
+            settings.managed_domains = normalized
+            updated = True
+        if settings.site_domain != primary:
+            settings.site_domain = primary
+            updated = True
+        if updated:
+            db.add(settings)
+            db.commit()
+            db.refresh(settings)
         return settings
 
     payload = _default_settings_payload()
@@ -134,7 +184,7 @@ def get_site_settings(db: Session) -> SiteSettings:
 def update_site_settings(
     db: Session,
     *,
-    site_domain: str,
+    managed_domains: str,
     short_code_length: int,
     short_link_path: str,
     logo_url: str,
@@ -143,7 +193,9 @@ def update_site_settings(
     """Persist new settings values and return the updated row."""
 
     settings = get_site_settings(db)
-    settings.site_domain = normalize_site_domain(site_domain)
+    domains = normalize_managed_domains(managed_domains)
+    settings.site_domain = domains[0]
+    settings.managed_domains = " ".join(domains)
     settings.short_code_length = normalize_short_code_length(short_code_length)
     settings.short_link_path = normalize_short_link_path(short_link_path)
     settings.logo_url = normalize_asset_url(logo_url, DEFAULT_LOGO_URL)
@@ -154,10 +206,11 @@ def update_site_settings(
     return settings
 
 
-def build_short_link_prefix(settings: SiteSettings) -> str:
+def build_short_link_prefix(settings: SiteSettings, domain: str | None = None) -> str:
     """Compose the short link prefix shown in the UI."""
 
-    domain = settings.site_domain.strip().strip("/") or DEFAULT_SITE_DOMAIN
+    effective_domain = (domain or get_primary_domain(settings)).strip().strip("/")
+    domain = effective_domain or DEFAULT_SITE_DOMAIN
     base_url = f"https://{domain}".rstrip("/")
     path = settings.short_link_path
     if not path.startswith("/"):

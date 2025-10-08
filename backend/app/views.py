@@ -28,7 +28,12 @@ from .models import (
     SubdomainRedirect,
     User,
 )
-from .settings_service import build_short_link_prefix, get_site_settings
+from .settings_service import (
+    build_short_link_prefix,
+    get_managed_domains,
+    get_primary_domain,
+    get_site_settings,
+)
 from .subdomain_service import format_blacklist_labels
 
 SUBDOMAIN_CODE_OPTIONS = [302, 301]
@@ -82,14 +87,16 @@ def _load_users(db: Session) -> list[User]:
     )
 
 
-def _generate_short_link_suggestion(db: Session, length: int) -> str:
+def _generate_short_link_suggestion(db: Session, length: int, domain: str) -> str:
     """Generate a random short link code suggestion that does not clash with existing ones."""
 
     alphabet = string.ascii_lowercase + string.digits
     attempts = max(length * 2, 10)
     for _ in range(attempts):
         candidate = "".join(secrets.choice(alphabet) for _ in range(length))
-        exists = db.scalar(select(ShortLink.id).where(ShortLink.code == candidate))
+        exists = db.scalar(
+            select(ShortLink.id).where(ShortLink.code == candidate, ShortLink.domain == domain)
+        )
         if not exists:
             return candidate
     return "".join(secrets.choice(alphabet) for _ in range(length))
@@ -98,20 +105,38 @@ def _generate_short_link_suggestion(db: Session, length: int) -> str:
 def _base_context(
     request: Request, settings: SiteSettings, user: User | None = None
 ) -> dict[str, Any]:
-    base_domain = settings.site_domain.strip().strip("/") or settings.site_domain
+    managed_domains = get_managed_domains(settings)
+    primary_domain = get_primary_domain(settings)
+    if primary_domain not in managed_domains:
+        managed_domains.insert(0, primary_domain)
+
+    prefix_map: dict[str, str] = {}
+    display_prefix_map: dict[str, str] = {}
+    for domain in managed_domains:
+        prefix = build_short_link_prefix(settings, domain)
+        display = prefix
+        for scheme in ("https://", "http://"):
+            if display.startswith(scheme):
+                display = display[len(scheme) :]
+                break
+        prefix_map[domain] = prefix
+        display_prefix_map[domain] = display
+
+    base_domain = primary_domain.strip().strip("/") or primary_domain
     base_url = f"https://{base_domain}".rstrip("/")
-    short_link_prefix = build_short_link_prefix(settings)
-    short_link_display_prefix = short_link_prefix
-    for scheme in ("https://", "http://"):
-        if short_link_display_prefix.startswith(scheme):
-            short_link_display_prefix = short_link_display_prefix[len(scheme) :]
-            break
+    short_link_prefix = prefix_map.get(primary_domain, build_short_link_prefix(settings))
+    short_link_display_prefix = display_prefix_map.get(primary_domain, short_link_prefix)
     return {
         "request": request,
         "base_domain": base_domain,
         "base_url": base_url,
         "short_link_prefix": short_link_prefix,
         "short_link_display_prefix": short_link_display_prefix,
+        "short_link_prefix_map": prefix_map,
+        "short_link_display_prefix_map": display_prefix_map,
+        "managed_domains": managed_domains,
+        "primary_domain": primary_domain,
+        "short_link_domains": managed_domains,
         "short_code_length": settings.short_code_length,
         "site_settings": settings,
         "current_year": datetime.utcnow().year,
@@ -163,6 +188,8 @@ def admin_dashboard(
     blacklist_entries = _load_subdomain_blacklist(db) if current_user.is_admin else []
 
     context, settings = _context_with_settings(request, db, current_user)
+    managed_domains = context.get("managed_domains", [])
+    primary_domain = context.get("primary_domain", settings.site_domain)
     context.update(
         {
             "active_tab": active_tab,
@@ -170,13 +197,14 @@ def admin_dashboard(
             "subdomains": subdomains,
             "users": users,
             "short_code_suggestion": _generate_short_link_suggestion(
-                db, settings.short_code_length
+                db, settings.short_code_length, primary_domain
             ),
             "subdomain_code_options": SUBDOMAIN_CODE_OPTIONS,
             "show_user_column": current_user.is_admin,
             "short_link_example": f"{context['short_link_prefix']}example",
             "subdomain_blacklist": blacklist_entries,
             "subdomain_blacklist_text": format_blacklist_labels(blacklist_entries),
+            "short_link_domains": managed_domains,
         }
     )
     if current_user.is_admin and active_tab == "settings":

@@ -30,6 +30,9 @@ from .models import (
     SubdomainRedirect,
     User,
     ensure_subdomain_hits_column,
+    ensure_site_settings_domain_column,
+    ensure_short_link_domain_column,
+    ensure_subdomain_domain_column,
     ensure_user_association_columns,
     engine,
     DEFAULT_SITE_DOMAIN,
@@ -59,8 +62,10 @@ from .settings_service import (
     build_short_link_prefix,
     ensure_default_settings,
     extract_short_link,
+    get_managed_domains,
+    get_primary_domain,
     get_site_settings,
-    resolve_short_link_hosts,
+    resolve_short_link_host_map,
     update_site_settings,
 )
 from .subdomain_service import ensure_default_subdomain_blacklist
@@ -94,6 +99,7 @@ app = FastAPI(
 from .views import (  # noqa: E402  pylint: disable=wrong-import-position
     router as admin_router,
     templates as admin_templates,
+    _context_with_settings as _admin_context_with_settings,
 )
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
@@ -115,6 +121,9 @@ def ensure_tables() -> None:
         Base.metadata.create_all(bind=engine)
         ensure_subdomain_hits_column()
         ensure_user_association_columns()
+        ensure_site_settings_domain_column()
+        ensure_short_link_domain_column()
+        ensure_subdomain_domain_column()
         ensure_default_settings()
         ensure_default_admin()
         ensure_default_subdomain_blacklist()
@@ -151,13 +160,15 @@ async def http_exception_handler(request: Request, exc: HTTPException) -> JSONRe
     return JSONResponse({"detail": exc.detail}, status_code=exc.status_code, headers=headers)
 
 
-def _generate_unique_code(db: Session, length: int) -> str:
+def _generate_unique_code(db: Session, length: int, domain: str) -> str:
     """生成唯一的短链接 code。"""
 
     alphabet = string.ascii_lowercase + string.digits
     for _ in range(MAX_CODE_ATTEMPTS):
         candidate = "".join(secrets.choice(alphabet) for _ in range(length))
-        exists = db.scalar(select(ShortLink).where(ShortLink.code == candidate))
+        exists = db.scalar(
+            select(ShortLink).where(ShortLink.code == candidate, ShortLink.domain == domain)
+        )
         if not exists:
             return candidate
     raise HTTPException(status.HTTP_409_CONFLICT, detail="无法生成唯一的短链接编码")
@@ -198,6 +209,19 @@ def _decode_urlencoded_form(body: bytes, charset: str = "utf-8") -> dict[str, An
     except UnicodeDecodeError as exc:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="表单内容解码失败") from exc
     return {key: value for key, value in parse_qsl(text, keep_blank_values=False)}
+
+
+def _match_managed_domain(host: str, managed_domains: list[str]) -> str | None:
+    """Return the managed domain that matches the given host."""
+
+    normalized = (host or "").strip().lower()
+    for domain in managed_domains:
+        candidate = domain.strip().lower()
+        if not candidate:
+            continue
+        if normalized == candidate or normalized.endswith(f".{candidate}"):
+            return domain
+    return None
 
 
 async def _read_form_data(request: Request, content_type: str) -> dict[str, Any]:
@@ -458,6 +482,10 @@ async def _parse_site_settings_payload(request: Request) -> SiteSettingsUpdate:
     else:
         data = await _read_form_data(request, content_type)
 
+    if "managed_domains" not in data and "site_domain" in data:
+        data["managed_domains"] = data.get("site_domain", "")
+    data.pop("site_domain", None)
+
     try:
         return SiteSettingsUpdate.model_validate(data)
     except ValidationError as exc:
@@ -665,18 +693,29 @@ async def create_short_link(
     """创建短链接，code 可空自动生成。"""
 
     settings = get_site_settings(db)
+    managed_domains = get_managed_domains(settings)
+    primary_domain = get_primary_domain(settings)
+    domain = payload.domain or primary_domain
+    if domain not in managed_domains:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail="域名不在管理列表中")
+
     code = payload.code
     if code and not current_user.is_admin:
         _ensure_slug_length(code, field="短链编码")
     if code:
-        exists = db.scalar(select(ShortLink).where(ShortLink.code == code))
+        exists = db.scalar(
+            select(ShortLink).where(ShortLink.code == code, ShortLink.domain == domain)
+        )
         if exists:
             raise HTTPException(status.HTTP_409_CONFLICT, detail="短链接编码已存在")
     else:
-        code = _generate_unique_code(db, settings.short_code_length)
+        code = _generate_unique_code(db, settings.short_code_length, domain)
 
     short_link = ShortLink(
-        code=code, target_url=payload.target_url, user_id=current_user.id
+        code=code,
+        domain=domain,
+        target_url=payload.target_url,
+        user_id=current_user.id,
     )
     db.add(short_link)
     _commit_session(db, conflict_detail="短链接编码已存在")
@@ -740,14 +779,27 @@ async def update_short_link(
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="短链接不存在")
     _ensure_short_link_permission(short_link, current_user)
 
+    settings = get_site_settings(db)
+    managed_domains = get_managed_domains(settings)
+    target_domain = payload.domain or short_link.domain
+    if target_domain not in managed_domains:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail="域名不在管理列表中")
+
     if payload.code != short_link.code:
         if not current_user.is_admin:
             _ensure_slug_length(payload.code, field="短链编码")
-        exists = db.scalar(select(ShortLink).where(ShortLink.code == payload.code))
+
+    if payload.code != short_link.code or target_domain != short_link.domain:
+        exists = db.scalar(
+            select(ShortLink)
+            .where(ShortLink.code == payload.code, ShortLink.domain == target_domain)
+            .where(ShortLink.id != short_link.id)
+        )
         if exists:
             raise HTTPException(status.HTTP_409_CONFLICT, detail="短链接编码已存在")
 
     short_link.code = payload.code
+    short_link.domain = target_domain
     short_link.target_url = payload.target_url
     if short_link.user_id is None:
         short_link.user_id = current_user.id
@@ -758,8 +810,16 @@ async def update_short_link(
     hx_request = request.headers.get("hx-request") == "true"
     if hx_request:
         message = _feedback_html("短链已更新", tone="success")
+        context, _ = _admin_context_with_settings(request, db, current_user)
+        context.update(
+            {
+                "item": short_link,
+                "show_user_column": current_user.is_admin,
+                "oob": True,
+            }
+        )
         row_html = admin_templates.get_template("admin/partials/link_row.html").render(
-            {"request": request, "item": short_link, "oob": True}
+            context
         )
         content = f"{message}{row_html}"
         return HTMLResponse(
@@ -802,6 +862,9 @@ async def create_subdomain(
 ) -> SubdomainRedirect | HTMLResponse:
     """创建子域跳转规则，Host 为完整域名。"""
 
+    settings = get_site_settings(db)
+    managed_domains = get_managed_domains(settings)
+
     host = payload.host
     if not current_user.is_admin:
         label = extract_subdomain_label(host)
@@ -812,8 +875,13 @@ async def create_subdomain(
     if existing:
         raise HTTPException(status.HTTP_409_CONFLICT, detail="子域跳转已存在")
 
+    matched_domain = _match_managed_domain(host, managed_domains)
+    if matched_domain is None:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail="域名不在管理列表中")
+
     redirect = SubdomainRedirect(
         host=host,
+        domain=matched_domain,
         target_url=payload.target_url,
         code=payload.code,
         user_id=current_user.id,
@@ -1206,6 +1274,9 @@ async def update_subdomain(
 ) -> SubdomainRedirect | HTMLResponse:
     """更新子域跳转规则。"""
 
+    settings = get_site_settings(db)
+    managed_domains = get_managed_domains(settings)
+
     redirect = db.get(SubdomainRedirect, redirect_id)
     if redirect is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="子域跳转不存在")
@@ -1224,7 +1295,12 @@ async def update_subdomain(
         if exists:
             raise HTTPException(status.HTTP_409_CONFLICT, detail="子域跳转已存在")
 
+    matched_domain = _match_managed_domain(normalized_host, managed_domains)
+    if matched_domain is None:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail="域名不在管理列表中")
+
     redirect.host = normalized_host
+    redirect.domain = matched_domain
     redirect.target_url = payload.target_url
     redirect.code = payload.code
     if redirect.user_id is None:
@@ -1236,8 +1312,16 @@ async def update_subdomain(
     hx_request = request.headers.get("hx-request") == "true"
     if hx_request:
         message = _feedback_html("子域跳转已更新", tone="success")
+        context, _ = _admin_context_with_settings(request, db, current_user)
+        context.update(
+            {
+                "item": redirect,
+                "show_user_column": current_user.is_admin,
+                "oob": True,
+            }
+        )
         row_html = admin_templates.get_template("admin/partials/subdomain_row.html").render(
-            {"request": request, "item": redirect, "oob": True}
+            context
         )
         content = f"{message}{row_html}"
         return HTMLResponse(
@@ -1262,10 +1346,13 @@ def catch_all(
     host = raw_host.split(":", 1)[0]
 
     settings = get_site_settings(db)
-    short_link_hosts = resolve_short_link_hosts(settings)
-    allow_short_link = host in short_link_hosts
+    host_map = resolve_short_link_host_map(settings)
+    allow_short_link = host in host_map
+    primary_domain = get_primary_domain(settings) or DEFAULT_SITE_DOMAIN
+    domain_for_host = host_map.get(host, primary_domain)
 
-    fallback_domain = (settings.site_domain or "").strip()
+    fallback_domain = domain_for_host if not allow_short_link else host
+    fallback_domain = fallback_domain.strip()
     if "://" in fallback_domain:
         fallback_domain = fallback_domain.split("://", 1)[1]
     fallback_domain = fallback_domain.strip("/") or DEFAULT_SITE_DOMAIN
@@ -1283,33 +1370,31 @@ def catch_all(
         match = extract_short_link(path, settings)
         if match:
             code, extra_path = match
-            short_link = db.scalar(select(ShortLink).where(ShortLink.code == code))
-            if short_link is None:
-                return RedirectResponse(
-                    fallback_url, status_code=status.HTTP_302_FOUND
-                )
+            short_link = db.scalar(
+                select(ShortLink).where(ShortLink.code == code, ShortLink.domain == domain_for_host)
+            )
+            if short_link is not None:
+                short_link.hits += 1
+                db.add(short_link)
+                _commit_session(db)
 
-            short_link.hits += 1
-            db.add(short_link)
-            _commit_session(db)
+                query = request.url.query or ""
+                target_host = _extract_host_from_url(short_link.target_url)
+                include_path = bool(extra_path) and target_host not in {"", host}
+                if include_path:
+                    destination = _compose_redirect_target(
+                        short_link.target_url,
+                        path=extra_path,
+                        query=query,
+                        include_path=True,
+                    )
+                else:
+                    destination = short_link.target_url
+                    if query:
+                        separator = "&" if "?" in destination else "?"
+                        destination = f"{destination}{separator}{query}"
 
-            query = request.url.query or ""
-            target_host = _extract_host_from_url(short_link.target_url)
-            include_path = bool(extra_path) and target_host not in {"", host}
-            if include_path:
-                destination = _compose_redirect_target(
-                    short_link.target_url,
-                    path=extra_path,
-                    query=query,
-                    include_path=True,
-                )
-            else:
-                destination = short_link.target_url
-                if query:
-                    separator = "&" if "?" in destination else "?"
-                    destination = f"{destination}{separator}{query}"
-
-            return RedirectResponse(destination, status_code=status.HTTP_302_FOUND)
+                return RedirectResponse(destination, status_code=status.HTTP_302_FOUND)
         elif settings.short_link_path != "/" and "/" not in (path or ""):
             return PlainTextResponse("Not Found", status_code=status.HTTP_404_NOT_FOUND)
 

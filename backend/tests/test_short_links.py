@@ -14,6 +14,7 @@ def test_create_short_link(client: "SimpleClient") -> None:
     assert payload["target_url"] == "https://example.com"
     assert payload["code"]
     assert payload["hits"] == 0
+    assert payload["domain"] == "yet.la"
 
 
 def test_create_short_link_conflict(client: "SimpleClient") -> None:
@@ -30,6 +31,40 @@ def test_create_short_link_conflict(client: "SimpleClient") -> None:
     )
     assert conflict.status_code == 409
     assert conflict.json() == {"error": "短链接编码已存在"}
+
+
+def test_create_short_link_allows_same_code_different_domain(client: "SimpleClient") -> None:
+    original = client.get("/api/settings", auth=ADMIN_AUTH).json()
+
+    update = client.put(
+        "/api/settings",
+        data={
+            "managed_domains": "yet.la go2.you",
+            "short_code_length": "6",
+            "short_link_path": "/",
+            "logo_url": "https://img.example.com/logo.png",
+            "icon_url": "https://img.example.com/icon.png",
+        },
+        auth=ADMIN_AUTH,
+    )
+    assert update.status_code == 200
+
+    first = client.post(
+        "/api/links",
+        json={"target_url": "https://example.com", "code": "dup", "domain": "yet.la"},
+        auth=ADMIN_AUTH,
+    )
+    assert first.status_code == 201
+    second = client.post(
+        "/api/links",
+        json={"target_url": "https://example.org", "code": "dup", "domain": "go2.you"},
+        auth=ADMIN_AUTH,
+    )
+    assert second.status_code == 201
+    assert first.json()["domain"] == "yet.la"
+    assert second.json()["domain"] == "go2.you"
+
+    client.put("/api/settings", json=original, auth=ADMIN_AUTH)
 
 
 def test_create_short_link_invalid_code(client: "SimpleClient") -> None:
@@ -133,7 +168,7 @@ def test_redirect_short_link_with_admin_prefix(client: "SimpleClient") -> None:
     update = client.put(
         "/api/settings",
         data={
-            "site_domain": "yet.la",
+            "managed_domains": "yet.la",
             "short_code_length": "6",
             "short_link_path": "/admin/",
             "logo_url": "https://img.example.com/logo.png",
@@ -197,7 +232,7 @@ def test_missing_short_link_with_path_avoids_subdomain_loop(
     update = client.put(
         "/api/settings",
         data={
-            "site_domain": "https://www.example.com",
+            "managed_domains": "https://www.example.com",
             "short_code_length": "6",
             "short_link_path": "/g/",
             "logo_url": "https://img.example.com/logo.png",
