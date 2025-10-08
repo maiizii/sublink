@@ -12,13 +12,14 @@ from .settings_service import (
     normalize_short_link_path,
     normalize_site_domain,
 )
-from .validators import normalize_slug
+from .validators import normalize_domain, normalize_slug
 
 
 class SubdomainRedirectBase(BaseModel):
     host: str = Field(..., description="例如 api.yet.la")
     target_url: str = Field(..., description="完整跳转地址")
     code: int = Field(default=302, description="HTTP 状态码")
+    domain: str | None = Field(default=None, description="所属域名，可选")
 
     @field_validator("host")
     @classmethod
@@ -32,6 +33,14 @@ class SubdomainRedirectBase(BaseModel):
             return prefix
         suffix = parts[1].strip()
         return f"{prefix}.{suffix}" if suffix else prefix
+
+    @field_validator("domain")
+    @classmethod
+    def _normalize_domain(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        normalized = normalize_domain(value, allow_empty=True)
+        return normalized or None
 
     @field_validator("code")
     @classmethod
@@ -47,6 +56,7 @@ class SubdomainRedirect(SubdomainRedirectBase):
     hits: int = Field(default=0, description="累计访问次数")
     user_id: int | None = Field(default=None, description="所属用户 ID")
     owner_username: str | None = Field(default=None, description="所属用户名")
+    domain: str = Field(..., description="所属域名")
 
     model_config = {"from_attributes": True}
 
@@ -90,6 +100,15 @@ class SubdomainBlacklistBulkUpdate(BaseModel):
 
 class ShortLinkBase(BaseModel):
     target_url: str = Field(..., description="目标地址")
+    domain: str | None = Field(default=None, description="短链域名，可选")
+
+    @field_validator("domain")
+    @classmethod
+    def _normalize_domain(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        normalized = normalize_domain(value, allow_empty=True)
+        return normalized or None
 
 
 class ShortLinkCreate(ShortLinkBase):
@@ -113,6 +132,7 @@ class ShortLink(ShortLinkBase):
     created_at: datetime = Field(..., description="创建时间")
     user_id: int | None = Field(default=None, description="所属用户 ID")
     owner_username: str | None = Field(default=None, description="所属用户名")
+    domain: str = Field(..., description="短链域名")
 
     model_config = {"from_attributes": True}
 

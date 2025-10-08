@@ -40,7 +40,7 @@ def test_fallback_redirect_uses_request_host_for_short_links(
 
     response = client.get("/missing", headers={"host": "example.com"}, follow_redirects=False)
     assert response.status_code == 302
-    assert response.headers["location"] == "https://example.com"
+    assert response.headers["location"] == "https://www.example.com"
 
 
 def test_missing_short_link_with_nested_path_redirects_to_root(

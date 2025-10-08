@@ -32,3 +32,19 @@ def extract_subdomain_label(host: str) -> str:
         return ""
     return normalized.split(".", 1)[0]
 
+
+def normalize_domain(value: str, *, allow_empty: bool = False) -> str:
+    """Normalize a domain value by stripping schemes, paths and upper-case letters."""
+
+    raw = (value or "").strip().lower()
+    if raw.startswith("http://") or raw.startswith("https://"):
+        raw = raw.split("://", 1)[1]
+    if "/" in raw:
+        raw = raw.split("/", 1)[0]
+    normalized = raw.strip()
+    if not normalized:
+        if allow_empty:
+            return ""
+        raise ValueError("域名不能为空")
+    return normalized
+

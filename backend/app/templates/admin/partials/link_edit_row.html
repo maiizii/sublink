@@ -10,20 +10,31 @@
       <div class="theme-form__grid theme-form__grid--two">
         <div class="theme-field">
           <label for="code-{{ item.id }}" class="theme-label">短链</label>
+          {% set options = short_link_domain_options if short_link_domain_options else [short_link_metadata(item.domain)] %}
+          {% set metadata = short_link_metadata(item.domain) %}
           <div class="theme-input-affix">
-            <span class="theme-input-affix__addon theme-input-affix__addon--prefix">
+            <span class="theme-input-affix__addon theme-input-affix__addon--prefix" data-short-link-domain-container>
               <select
                 id="short-link-domain-{{ item.id }}"
+                name="domain"
                 class="theme-input-affix__select"
                 data-short-link-domain-select
                 aria-label="选择短链域名"
               >
-                {% for domain in managed_domains %}
-                <option value="{{ domain }}">{{ domain }}</option>
+                {% for option in options %}
+                <option
+                  value="{{ option.domain }}"
+                  data-prefix="{{ option.prefix }}"
+                  data-display-prefix="{{ option.display_prefix }}"
+                  data-display-suffix="{{ option.display_suffix }}"
+                  {% if option.domain == metadata.domain %}selected{% endif %}
+                >
+                  {{ option.domain }}
+                </option>
                 {% endfor %}
               </select>
               <span class="theme-input-affix__suffix-text" data-short-link-domain-suffix>
-                {{ short_link_display_suffix }}
+                {{ metadata.display_suffix }}
               </span>
             </span>
             <input
