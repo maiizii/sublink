@@ -9,28 +9,33 @@
     >
       <div class="theme-form__grid theme-form__grid--three">
         <div class="theme-field">
-          <label for="subdomain-domain-{{ item.id }}" class="theme-label">域名</label>
-          <select
-            id="subdomain-domain-{{ item.id }}"
-            class="theme-select"
-            data-domain-select-source
-          >
-            {% set current_domain = item.domain or primary_domain %}
-            {% for domain in managed_domains %}
-            <option
-              value="{{ domain }}"
-              data-domain-suffix="{{ domain }}"
-              {% if domain == current_domain %}selected{% endif %}
-            >
-              {{ domain }}
-            </option>
-            {% endfor %}
-          </select>
-        </div>
-        <div class="theme-field">
-          <label for="host-{{ item.id }}" class="theme-label">子域</label>
+          {% set current_domain = item.domain or primary_domain %}
           {% set host_parts = item.host.split('.', 1) %}
           {% set host_prefix = host_parts[0] %}
+          <div class="theme-field__header">
+            <label for="host-{{ item.id }}" class="theme-label">子域</label>
+            <select
+              id="subdomain-domain-{{ item.id }}"
+              name="domain"
+              class="theme-select theme-select--inline"
+              data-domain-select-source
+              aria-label="选择域名"
+              {% if not current_user.is_admin %}disabled{% endif %}
+            >
+              {% for domain in managed_domains %}
+              <option
+                value="{{ domain }}"
+                data-domain-suffix="{{ domain }}"
+                {% if domain == current_domain %}selected{% endif %}
+              >
+                {{ domain }}
+              </option>
+              {% endfor %}
+            </select>
+            {% if not current_user.is_admin %}
+            <input type="hidden" name="domain" value="{{ current_domain }}" />
+            {% endif %}
+          </div>
           <div
             class="theme-input-affix"
             data-domain-input
