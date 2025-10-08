@@ -86,30 +86,7 @@
                 <div class="theme-field">
                   <label for="code" class="theme-label">短链（可改）</label>
                   <div class="theme-input-affix">
-                    <span class="theme-input-affix__addon theme-input-affix__addon--prefix" data-short-link-domain-container>
-                      <select
-                        id="short-link-domain"
-                        name="domain"
-                        class="theme-input-affix__select"
-                        data-short-link-domain-select
-                        aria-label="选择短链域名"
-                      >
-                        {% for option in short_link_domain_options %}
-                        <option
-                          value="{{ option.domain }}"
-                          data-prefix="{{ option.prefix }}"
-                          data-display-prefix="{{ option.display_prefix }}"
-                          data-display-suffix="{{ option.display_suffix }}"
-                          {% if option.domain == primary_domain %}selected{% endif %}
-                        >
-                          {{ option.domain }}
-                        </option>
-                        {% endfor %}
-                      </select>
-                      <span class="theme-input-affix__suffix-text" data-short-link-domain-suffix>
-                        {{ short_link_display_suffix }}
-                      </span>
-                    </span>
+                    <span class="theme-input-affix__addon theme-input-affix__addon--prefix">{{ short_link_display_prefix }}</span>
                     <input
                       id="code"
                       name="code"
@@ -176,7 +153,7 @@
           <div class="theme-card__header">
             <h2 class="theme-card__title">创建子域</h2>
             <p class="theme-card__subtitle">
-              填写子域前缀并选择管理域名，系统会自动拼接完整主机；状态码默认为 302，可在下拉菜单中切换。
+              填写子域前缀即可，后缀 .{{ base_domain }} 将自动拼接；状态码默认为 302，支持在下拉菜单中切换。
             </p>
           </div>
           <div class="theme-card__body">
@@ -197,7 +174,7 @@
                   <div
                     class="theme-input-affix"
                     data-domain-input
-                    data-domain-suffix="{{ primary_domain }}"
+                    data-domain-suffix="{{ base_domain }}"
                   >
                     <input
                       id="subdomain-prefix"
@@ -211,21 +188,8 @@
                       pattern="^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$"
                       title="仅允许小写字母、数字或连字符，首尾需为字母或数字"
                     />
-                    <span class="theme-input-affix__addon theme-input-affix__addon--suffix">
-                      .
-                      <select
-                        id="subdomain-domain"
-                        class="theme-input-affix__select"
-                        data-domain-input-select
-                        aria-label="选择管理域名"
-                      >
-                        {% for domain in managed_domains %}
-                        <option value="{{ domain }}">{{ domain }}</option>
-                        {% endfor %}
-                      </select>
-                    </span>
+                    <span class="theme-input-affix__addon theme-input-affix__addon--suffix">.{{ base_domain }}</span>
                     <input type="hidden" name="host" data-domain-input-hidden />
-                    <input type="hidden" name="domain" data-domain-input-domain />
                   </div>
                 </div>
                 <div class="theme-field">

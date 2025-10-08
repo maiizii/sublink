@@ -7,6 +7,4 @@
 3. 当需要新增子域时，只需更新 map 表并重载 Nginx，无需再修改 DNS。
 
 `subdomains.conf` 展示了 map 与 upstream 的基础写法，同时保留了未匹配子域的兜底策略。生产环境中，入口脚本会从 `/etc/nginx/ssl-src`
-解析真实证书并在 `/etc/nginx/ssl` 内生成标准化链接，便于直接复用 `ssl_certificate` 与 `ssl_certificate_key` 配置。如果挂载目录中未提供
-有效证书，`docker-entrypoint.d/10-setup-cert-links.sh` 会自动生成一个临时自签名证书（默认有效期 7 天），确保容器仍能启动，随后可随
-时替换为正式证书并重载 Nginx。
+解析真实证书并在 `/etc/nginx/ssl` 内生成标准化链接，便于直接复用 `ssl_certificate` 与 `ssl_certificate_key` 配置。

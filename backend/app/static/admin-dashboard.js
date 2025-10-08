@@ -772,27 +772,10 @@
 
       const input = group.querySelector("[data-domain-input-field]");
       const hidden = group.querySelector("[data-domain-input-hidden]");
-      const domainHidden = group.querySelector("[data-domain-input-domain]");
-      const select = group.querySelector("[data-domain-input-select]");
-      const defaultSuffix = (group.getAttribute("data-domain-suffix") || "")
-        .trim()
-        .toLowerCase();
-
-      const resolveSuffix = () => {
-        if (select && select.value) {
-          return select.value.trim().toLowerCase();
-        }
-        return defaultSuffix;
-      };
+      const rawSuffix = group.getAttribute("data-domain-suffix") || "";
+      const suffix = rawSuffix.trim();
 
       const updateValue = () => {
-        const suffix = resolveSuffix();
-        group.dataset.domainSuffix = suffix;
-
-        if (domainHidden) {
-          domainHidden.value = suffix;
-        }
-
         if (!hidden) {
           return;
         }
@@ -825,10 +808,6 @@
         input.addEventListener("input", updateValue);
       }
 
-      if (select) {
-        select.addEventListener("change", updateValue);
-      }
-
       const form = group.closest("form");
       if (form) {
         form.addEventListener("reset", () => {
@@ -839,55 +818,6 @@
       group.dataset.domainEnhanced = "true";
       group.__updateDomainValue = updateValue;
       updateValue();
-    });
-  }
-
-  function bindShortLinkDomainSelects(root = document) {
-    const scope = root instanceof Element ? root : document;
-    const selects = scope.querySelectorAll("[data-short-link-domain-select]");
-
-    selects.forEach((select) => {
-      if (!(select instanceof HTMLSelectElement)) {
-        return;
-      }
-
-      if (select.dataset.shortLinkDomainBound === "true") {
-        if (typeof select.__updateShortLinkSuffix === "function") {
-          select.__updateShortLinkSuffix();
-        }
-        return;
-      }
-
-      const updateSuffix = () => {
-        const option = select.selectedOptions[0];
-        if (!option) {
-          return;
-        }
-        const suffix = option.getAttribute("data-display-suffix") || "";
-        const container = select.closest("[data-short-link-domain-container]") || select.parentElement;
-        if (!container) {
-          return;
-        }
-        const targets = container.querySelectorAll("[data-short-link-domain-suffix]");
-        targets.forEach((target) => {
-          if (!(target instanceof HTMLElement)) {
-            return;
-          }
-          target.textContent = suffix;
-        });
-      };
-
-      select.addEventListener("change", updateSuffix);
-      const form = select.closest("form");
-      if (form) {
-        form.addEventListener("reset", () => {
-          window.setTimeout(updateSuffix, 0);
-        });
-      }
-
-      select.dataset.shortLinkDomainBound = "true";
-      select.__updateShortLinkSuffix = updateSuffix;
-      updateSuffix();
     });
   }
 
@@ -1145,7 +1075,6 @@
 
   function enhanceDynamicUI(root) {
     bindDomainInputs(root);
-    bindShortLinkDomainSelects(root);
     bindCopyButtons(root);
     bindDetailsToggles(root);
   }

@@ -14,63 +14,22 @@ def test_create_short_link(client: "SimpleClient") -> None:
     assert payload["target_url"] == "https://example.com"
     assert payload["code"]
     assert payload["hits"] == 0
-    assert payload["domain"] == "yet.la"
 
 
 def test_create_short_link_conflict(client: "SimpleClient") -> None:
     client.post(
         "/api/links",
-        json={"target_url": "https://example.com", "code": "custom", "domain": "yet.la"},
+        json={"target_url": "https://example.com", "code": "custom"},
         auth=ADMIN_AUTH,
     )
 
     conflict = client.post(
         "/api/links",
-        json={"target_url": "https://example.org", "code": "custom", "domain": "yet.la"},
+        json={"target_url": "https://example.org", "code": "custom"},
         auth=ADMIN_AUTH,
     )
     assert conflict.status_code == 409
     assert conflict.json() == {"error": "短链接编码已存在"}
-
-
-def test_create_short_link_allows_duplicate_code_on_other_domain(
-    client: "SimpleClient",
-) -> None:
-    client.put(
-        "/api/settings",
-        data={
-            "site_domain": "yet.la go2.you",
-            "short_code_length": "6",
-            "short_link_path": "/",
-            "logo_url": "https://img.example.com/logo.png",
-            "icon_url": "https://img.example.com/icon.png",
-        },
-        auth=ADMIN_AUTH,
-    )
-
-    first = client.post(
-        "/api/links",
-        json={
-            "target_url": "https://example.com",
-            "code": "shared",
-            "domain": "yet.la",
-        },
-        auth=ADMIN_AUTH,
-    )
-    assert first.status_code == 201
-
-    second = client.post(
-        "/api/links",
-        json={
-            "target_url": "https://example.org",
-            "code": "shared",
-            "domain": "go2.you",
-        },
-        auth=ADMIN_AUTH,
-    )
-    assert second.status_code == 201
-    payload = second.json()
-    assert payload["domain"] == "go2.you"
 
 
 def test_create_short_link_invalid_code(client: "SimpleClient") -> None:
@@ -94,7 +53,6 @@ def test_admin_allows_long_short_code(client: "SimpleClient") -> None:
     assert response.status_code == 201
     created = response.json()
     assert created["code"] == long_code
-    assert created["domain"] == "yet.la"
 
     client.delete(f"/api/links/{created['id']}", auth=ADMIN_AUTH)
 
@@ -137,7 +95,6 @@ def test_redirect_short_link_and_hits(client: "SimpleClient") -> None:
     records = listing.json()
     assert len(records) == 1
     assert records[0]["hits"] == 1
-    assert records[0]["domain"] == "yet.la"
 
 
 def test_short_link_redirect_with_extra_path_and_query(client: "SimpleClient") -> None:
@@ -234,80 +191,6 @@ def test_redirect_short_link_not_found(client: "SimpleClient") -> None:
     assert response.headers["location"] == "https://yet.la"
 
 
-def test_short_link_redirect_on_secondary_domain(client: "SimpleClient") -> None:
-    update = client.put(
-        "/api/settings",
-        data={
-            "site_domain": "yet.la go2.you",
-            "short_code_length": "6",
-            "short_link_path": "/",
-            "logo_url": "https://img.example.com/logo.png",
-            "icon_url": "https://img.example.com/icon.png",
-        },
-        auth=ADMIN_AUTH,
-    )
-    assert update.status_code == 200
-
-    client.post(
-        "/api/links",
-        json={
-            "target_url": "https://example.com/landing",
-            "code": "promo",
-            "domain": "go2.you",
-        },
-        auth=ADMIN_AUTH,
-    )
-
-    redirect = client.get(
-        "/promo",
-        headers={"host": "go2.you"},
-        follow_redirects=False,
-    )
-    assert redirect.status_code == 302
-    assert redirect.headers["location"] == "https://example.com/landing"
-
-    missing = client.get(
-        "/missing",
-        headers={"host": "go2.you"},
-        follow_redirects=False,
-    )
-    assert missing.status_code == 302
-    assert missing.headers["location"] == "https://go2.you"
-
-
-def test_short_link_redirect_on_www_primary_domain(client: "SimpleClient") -> None:
-    update = client.put(
-        "/api/settings",
-        data={
-            "site_domain": "www.example.com",
-            "short_code_length": "6",
-            "short_link_path": "/",
-            "logo_url": "https://img.example.com/logo.png",
-            "icon_url": "https://img.example.com/icon.png",
-        },
-        auth=ADMIN_AUTH,
-    )
-    assert update.status_code == 200
-
-    client.post(
-        "/api/links",
-        json={
-            "target_url": "https://example.com/landing",
-            "code": "promo",
-            "domain": "www.example.com",
-        },
-        auth=ADMIN_AUTH,
-    )
-
-    redirect = client.get(
-        "/promo",
-        headers={"host": "example.com"},
-        follow_redirects=False,
-    )
-    assert redirect.status_code == 302
-    assert redirect.headers["location"] == "https://example.com/landing"
-
-
 def test_missing_short_link_with_path_avoids_subdomain_loop(
     client: "SimpleClient",
 ) -> None:
@@ -352,7 +235,7 @@ def test_root_request_returns_not_found(client: "SimpleClient") -> None:
 def test_create_short_link_via_htmx_form(client: "SimpleClient") -> None:
     response = client.post(
         "/api/links",
-        data={"target_url": "https://example.com/docs", "domain": "yet.la"},
+        data={"target_url": "https://example.com/docs"},
         headers={"hx-request": "true"},
         auth=ADMIN_AUTH,
     )
@@ -388,11 +271,7 @@ def test_update_short_link_via_htmx_form(client: "SimpleClient") -> None:
 
     response = client.put(
         f"/api/links/{created['id']}",
-        data={
-            "code": "updated",
-            "target_url": "https://example.com/new",
-            "domain": "yet.la",
-        },
+        data={"code": "updated", "target_url": "https://example.com/new"},
         headers={"hx-request": "true"},
         auth=ADMIN_AUTH,
     )
@@ -406,60 +285,6 @@ def test_update_short_link_via_htmx_form(client: "SimpleClient") -> None:
     records = listing.json()
     assert records[0]["code"] == "updated"
     assert records[0]["target_url"] == "https://example.com/new"
-    assert records[0]["domain"] == "yet.la"
-
-
-def test_update_short_link_domain_changes_scope(client: "SimpleClient") -> None:
-    client.put(
-        "/api/settings",
-        data={
-            "site_domain": "yet.la go2.you",
-            "short_code_length": "6",
-            "short_link_path": "/",
-            "logo_url": "https://img.example.com/logo.png",
-            "icon_url": "https://img.example.com/icon.png",
-        },
-        auth=ADMIN_AUTH,
-    )
-
-    created = client.post(
-        "/api/links",
-        json={
-            "target_url": "https://example.com/original",
-            "code": "swap",
-            "domain": "yet.la",
-        },
-        auth=ADMIN_AUTH,
-    ).json()
-
-    update = client.put(
-        f"/api/links/{created['id']}",
-        json={
-            "code": "swap",
-            "target_url": "https://example.com/new-target",
-            "domain": "go2.you",
-        },
-        auth=ADMIN_AUTH,
-    )
-    assert update.status_code == 200
-    payload = update.json()
-    assert payload["domain"] == "go2.you"
-
-    fallback = client.get(
-        "/swap",
-        headers={"host": "yet.la"},
-        follow_redirects=False,
-    )
-    assert fallback.status_code == 302
-    assert fallback.headers["location"] == "https://yet.la"
-
-    redirect = client.get(
-        "/swap",
-        headers={"host": "go2.you"},
-        follow_redirects=False,
-    )
-    assert redirect.status_code == 302
-    assert redirect.headers["location"] == "https://example.com/new-target"
 
 
 def test_admin_short_link_partials(client: "SimpleClient") -> None:
@@ -509,7 +334,6 @@ def test_short_links_are_scoped_by_user(client: "SimpleClient") -> None:
     normal_records = normal_listing.json()
     assert len(normal_records) == 1
     assert normal_records[0]["code"] == "alice"
-    assert normal_records[0]["domain"] == "yet.la"
 
     admin_listing = client.get("/api/links", auth=ADMIN_AUTH)
     assert admin_listing.status_code == 200
