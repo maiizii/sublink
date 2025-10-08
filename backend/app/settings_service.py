@@ -5,6 +5,7 @@ import os
 from typing import Any
 
 from sqlalchemy import select
+from sqlalchemy.exc import OperationalError, ProgrammingError
 from sqlalchemy.orm import Session
 
 from .models import (
@@ -13,8 +14,10 @@ from .models import (
     DEFAULT_SHORT_CODE_LENGTH,
     DEFAULT_SHORT_LINK_PATH,
     DEFAULT_SITE_DOMAIN,
+    Base,
     SessionLocal,
     SiteSettings,
+    engine,
 )
 
 _MIN_SHORT_CODE_LENGTH = 3
@@ -150,10 +153,25 @@ def ensure_default_settings() -> None:
         session.commit()
 
 
+def _ensure_settings_table(db: Session) -> None:
+    """Make sure the site settings table exists before selecting from it."""
+
+    bind = db.get_bind() or engine
+    # Restrict the create_all call to the site_settings table to avoid touching
+    # unrelated schema. If the table already exists SQLAlchemy simply ignores it.
+    Base.metadata.create_all(bind=bind, tables=[SiteSettings.__table__])
+
+
 def get_site_settings(db: Session) -> SiteSettings:
     """Fetch the single settings row, creating one with defaults if necessary."""
 
-    settings = db.scalar(select(SiteSettings).order_by(SiteSettings.id).limit(1))
+    try:
+        settings = db.scalar(select(SiteSettings).order_by(SiteSettings.id).limit(1))
+    except (OperationalError, ProgrammingError):
+        db.rollback()
+        _ensure_settings_table(db)
+        settings = db.scalar(select(SiteSettings).order_by(SiteSettings.id).limit(1))
+
     if settings is not None:
         return settings
 
