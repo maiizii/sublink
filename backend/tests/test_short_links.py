@@ -275,6 +275,39 @@ def test_short_link_redirect_on_secondary_domain(client: "SimpleClient") -> None
     assert missing.headers["location"] == "https://go2.you"
 
 
+def test_short_link_redirect_on_www_primary_domain(client: "SimpleClient") -> None:
+    update = client.put(
+        "/api/settings",
+        data={
+            "site_domain": "www.example.com",
+            "short_code_length": "6",
+            "short_link_path": "/",
+            "logo_url": "https://img.example.com/logo.png",
+            "icon_url": "https://img.example.com/icon.png",
+        },
+        auth=ADMIN_AUTH,
+    )
+    assert update.status_code == 200
+
+    client.post(
+        "/api/links",
+        json={
+            "target_url": "https://example.com/landing",
+            "code": "promo",
+            "domain": "www.example.com",
+        },
+        auth=ADMIN_AUTH,
+    )
+
+    redirect = client.get(
+        "/promo",
+        headers={"host": "example.com"},
+        follow_redirects=False,
+    )
+    assert redirect.status_code == 302
+    assert redirect.headers["location"] == "https://example.com/landing"
+
+
 def test_missing_short_link_with_path_avoids_subdomain_loop(
     client: "SimpleClient",
 ) -> None:

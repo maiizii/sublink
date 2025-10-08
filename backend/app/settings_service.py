@@ -267,6 +267,8 @@ def match_short_link_domain(host: str, settings: SiteSettings) -> str | None:
             return domain
         if normalized_host == f"www.{domain}":
             return domain
+        if domain.startswith("www.") and normalized_host == domain[4:]:
+            return domain
 
     return None
 
