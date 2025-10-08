@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>{% block title %}{{ site_settings.site_domain }} 短链子域管理后台{% endblock %}</title>
+    <title>{% block title %}{{ primary_domain }} 短链子域管理后台{% endblock %}</title>
     <link rel="icon" type="image/png" href="{{ site_settings.icon_url }}" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -1151,6 +1151,34 @@
 
       .theme-input-affix__input::placeholder {
         color: var(--theme-muted);
+      }
+
+      .theme-input-affix__select {
+        border: none;
+        background: transparent;
+        color: var(--theme-text-primary);
+        font-family: var(--font-mono);
+        font-size: 0.9rem;
+        padding: 0 1.25rem 0 0.35rem;
+        margin-left: 0.25rem;
+        height: 100%;
+        cursor: pointer;
+      }
+
+      .theme-input-affix__select:focus,
+      .theme-input-affix__select:focus-visible {
+        outline: none;
+      }
+
+      .theme-input-affix__select option {
+        color: var(--theme-text-primary);
+        background: var(--theme-input-bg);
+      }
+
+      .theme-input-affix__suffix-text {
+        display: inline-flex;
+        align-items: center;
+        margin-left: 0.1rem;
       }
 
       .theme-helper {
@@ -2440,20 +2468,20 @@
               <div class="theme-hero__brand">
                 <img
                   src="{{ site_settings.logo_url }}"
-                  alt="{{ site_settings.site_domain }} 平台标识"
+                  alt="{{ primary_domain }} 平台标识"
                   class="theme-hero__brand-logo"
                 />
-                <span class="sr-only">{{ site_settings.site_domain }} Platform</span>
+                <span class="sr-only">{{ primary_domain }} Platform</span>
               </div>
             </div>
             <div class="theme-hero__toolbar">
               <div class="theme-hero__title-row">
                 <h1 class="theme-hero__title">
                   <span class="theme-hero__title-text theme-hero__title-text--full"
-                    >{{ site_settings.site_domain }} 短链子域管理后台</span
+                    >{{ primary_domain }} 短链子域管理后台</span
                   >
                   <span class="theme-hero__title-text theme-hero__title-text--compact"
-                    >{{ site_settings.site_domain }} 短链子域管理后台</span
+                    >{{ primary_domain }} 短链子域管理后台</span
                   >
                 </h1>
               </div>
@@ -2532,6 +2560,6 @@
     <main class="theme-main">
       {% block content %}{% endblock %}
     </main>
-    <footer class="theme-footer">© {{ current_year }} {{ site_settings.site_domain }}</footer>
+    <footer class="theme-footer">© {{ current_year }} {{ primary_domain }}</footer>
   </body>
 </html>

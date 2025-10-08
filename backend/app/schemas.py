@@ -205,7 +205,9 @@ class PasswordChange(BaseModel):
 
 
 class SiteSettingsBase(BaseModel):
-    site_domain: str = Field(..., description="基础域名，例如 yet.la")
+    site_domain: str = Field(
+        ..., description="管理域名，可使用空格分隔多个，首个为主域名"
+    )
     short_code_length: int = Field(..., ge=3, le=64, description="短链默认长度")
     short_link_path: str = Field(..., description="短链路径前缀，例如 / 或 /r/")
     logo_url: str = Field(..., description="LOGO 图片地址")

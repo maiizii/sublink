@@ -51,6 +51,31 @@ def test_update_settings_affects_short_links(client: "SimpleClient") -> None:
     assert missing.status_code == 404
 
 
+def test_update_settings_supports_multiple_domains(client: "SimpleClient") -> None:
+    payload = {
+        "site_domain": "Yet.LA go2.you www.example.com",
+        "short_code_length": "6",
+        "short_link_path": "/",
+        "logo_url": "https://cdn.example.com/logo.png",
+        "icon_url": "https://cdn.example.com/icon.png",
+    }
+
+    response = client.put(
+        "/api/settings",
+        data=payload,
+        auth=(ADMIN_USERNAME, ADMIN_PASSWORD),
+        follow_redirects=False,
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["site_domain"] == "yet.la go2.you www.example.com"
+
+    fetched = client.get("/api/settings", auth=(ADMIN_USERNAME, ADMIN_PASSWORD))
+    assert fetched.status_code == 200
+    fetched_body = fetched.json()
+    assert fetched_body["site_domain"] == "yet.la go2.you www.example.com"
+
+
 def test_update_settings_via_htmx_returns_partial(client: "SimpleClient") -> None:
     payload = {
         "site_domain": "yet.la",
