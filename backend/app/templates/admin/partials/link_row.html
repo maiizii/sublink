@@ -3,16 +3,18 @@
   class="theme-table__row"
   {% if oob %}hx-swap-oob="outerHTML"{% endif %}
 >
+  {% set item_prefix = short_link_prefix_map.get(item.domain, short_link_prefix) %}
+  {% set item_display_prefix = short_link_display_prefix_map.get(item.domain, short_link_display_prefix) %}
   <td class="theme-table__cell theme-table__cell--summary">
     <div class="theme-table__summary">
       <button
         type="button"
         class="theme-copy"
-        data-copy-value="{{ short_link_prefix }}{{ item.code }}"
-        aria-label="复制短链 {{ short_link_prefix }}{{ item.code }}"
-        title="{{ short_link_prefix }}{{ item.code }}"
+        data-copy-value="{{ item_prefix }}{{ item.code }}"
+        aria-label="复制短链 {{ item_prefix }}{{ item.code }}"
+        title="{{ item_prefix }}{{ item.code }}"
       >
-        <span class="theme-copy__text">{{ short_link_display_prefix }}{{ item.code }}</span>
+        <span class="theme-copy__text">{{ item_display_prefix }}{{ item.code }}</span>
         <span class="theme-copy__icon" aria-hidden="true">
           <svg viewBox="0 0 24 24">
             <rect x="9" y="9" width="12" height="12" rx="2"></rect>
@@ -74,10 +76,10 @@
             <button
               type="button"
               class="theme-copy"
-              data-copy-value="{{ short_link_prefix }}{{ item.code }}"
-              aria-label="复制短链 {{ short_link_prefix }}{{ item.code }}"
+              data-copy-value="{{ item_prefix }}{{ item.code }}"
+              aria-label="复制短链 {{ item_prefix }}{{ item.code }}"
             >
-              <span class="theme-copy__text">{{ short_link_display_prefix }}{{ item.code }}</span>
+              <span class="theme-copy__text">{{ item_display_prefix }}{{ item.code }}</span>
               <span class="theme-copy__icon" aria-hidden="true">
                 <svg viewBox="0 0 24 24">
                   <rect x="9" y="9" width="12" height="12" rx="2"></rect>

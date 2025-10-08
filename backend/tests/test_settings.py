@@ -9,7 +9,7 @@ def test_settings_requires_admin(client: "SimpleClient") -> None:
 
 def test_update_settings_affects_short_links(client: "SimpleClient") -> None:
     payload = {
-        "site_domain": "https://Example.COM",
+        "managed_domains": "https://Example.COM blog.example",
         "short_code_length": "4",
         "short_link_path": "r",
         "logo_url": "https://cdn.example.com/logo.png",
@@ -25,6 +25,7 @@ def test_update_settings_affects_short_links(client: "SimpleClient") -> None:
     assert update.status_code == 200
     body = update.json()
     assert body["site_domain"] == "example.com"
+    assert body["managed_domains"] == "example.com blog.example"
     assert body["short_code_length"] == 4
     assert body["short_link_path"] == "/r/"
     assert body["logo_url"] == payload["logo_url"]
@@ -34,6 +35,7 @@ def test_update_settings_affects_short_links(client: "SimpleClient") -> None:
     assert fetched.status_code == 200
     fetched_body = fetched.json()
     assert fetched_body["site_domain"] == "example.com"
+    assert fetched_body["managed_domains"] == "example.com blog.example"
     assert fetched_body["short_link_path"] == "/r/"
 
     create_response = client.post(
@@ -53,7 +55,7 @@ def test_update_settings_affects_short_links(client: "SimpleClient") -> None:
 
 def test_update_settings_via_htmx_returns_partial(client: "SimpleClient") -> None:
     payload = {
-        "site_domain": "yet.la",
+        "managed_domains": "yet.la",
         "short_code_length": "6",
         "short_link_path": "/a/",
         "logo_url": "https://cdn.example.com/logo-alt.png",

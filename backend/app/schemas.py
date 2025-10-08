@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field, ValidationInfo, field_validator
 from .models import DEFAULT_ICON_URL, DEFAULT_LOGO_URL
 from .settings_service import (
     normalize_asset_url,
+    normalize_managed_domains,
     normalize_short_code_length,
     normalize_short_link_path,
     normalize_site_domain,
@@ -43,6 +44,7 @@ class SubdomainRedirectBase(BaseModel):
 
 class SubdomainRedirect(SubdomainRedirectBase):
     id: int = Field(..., description="数据库主键")
+    domain: str = Field(..., description="所属基础域名")
     created_at: datetime = Field(..., description="创建时间")
     hits: int = Field(default=0, description="累计访问次数")
     user_id: int | None = Field(default=None, description="所属用户 ID")
@@ -94,6 +96,7 @@ class ShortLinkBase(BaseModel):
 
 class ShortLinkCreate(ShortLinkBase):
     code: str | None = Field(default=None, description="短链编码，可为空自动生成")
+    domain: str | None = Field(default=None, description="短链所属域名，可留空使用主域名")
 
     @field_validator("code")
     @classmethod
@@ -105,10 +108,21 @@ class ShortLinkCreate(ShortLinkBase):
             return None
         return normalize_slug(stripped, field="短链编码")
 
+    @field_validator("domain")
+    @classmethod
+    def _normalize_domain(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        stripped = value.strip()
+        if not stripped:
+            return None
+        return normalize_site_domain(stripped)
+
 
 class ShortLink(ShortLinkBase):
     id: int = Field(..., description="数据库主键")
     code: str = Field(..., description="短链编码")
+    domain: str = Field(..., description="所属域名")
     hits: int = Field(default=0, description="访问次数")
     created_at: datetime = Field(..., description="创建时间")
     user_id: int | None = Field(default=None, description="所属用户 ID")
@@ -119,6 +133,7 @@ class ShortLink(ShortLinkBase):
 
 class ShortLinkUpdate(ShortLinkBase):
     code: str = Field(..., description="短链编码")
+    domain: str | None = Field(default=None, description="短链所属域名，可留空保留原值")
 
     @field_validator("code")
     @classmethod
@@ -127,6 +142,16 @@ class ShortLinkUpdate(ShortLinkBase):
         if not stripped:
             raise ValueError("短链编码不能为空")
         return normalize_slug(stripped, field="短链编码")
+
+    @field_validator("domain")
+    @classmethod
+    def _normalize_domain(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        stripped = value.strip()
+        if not stripped:
+            return None
+        return normalize_site_domain(stripped)
 
 
 class UserBase(BaseModel):
@@ -205,16 +230,17 @@ class PasswordChange(BaseModel):
 
 
 class SiteSettingsBase(BaseModel):
-    site_domain: str = Field(..., description="基础域名，例如 yet.la")
+    managed_domains: str = Field(..., description="管理域名列表，空格分隔，首个为主域名")
     short_code_length: int = Field(..., ge=3, le=64, description="短链默认长度")
     short_link_path: str = Field(..., description="短链路径前缀，例如 / 或 /r/")
     logo_url: str = Field(..., description="LOGO 图片地址")
     icon_url: str = Field(..., description="网站 ICON 图片地址")
 
-    @field_validator("site_domain")
+    @field_validator("managed_domains")
     @classmethod
-    def _normalize_domain(cls, value: str) -> str:
-        return normalize_site_domain(value)
+    def _normalize_domains(cls, value: str) -> str:
+        domains = normalize_managed_domains(value)
+        return " ".join(domains)
 
     @field_validator("short_code_length")
     @classmethod
@@ -238,7 +264,13 @@ class SiteSettingsBase(BaseModel):
 
 
 class SiteSettings(SiteSettingsBase):
+    site_domain: str = Field(..., description="主域名")
     updated_at: datetime | None = Field(default=None, description="最近更新时间")
+
+    @field_validator("site_domain")
+    @classmethod
+    def _normalize_domain(cls, value: str) -> str:
+        return normalize_site_domain(value)
 
     model_config = {"from_attributes": True}
 

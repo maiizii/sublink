@@ -20,17 +20,17 @@
     >
       <div class="theme-form__grid theme-form__grid--two-fixed">
         <div class="theme-field theme-field--mobile-condensed">
-          <label for="site_domain" class="theme-label">管理域名 *</label>
+          <label for="managed_domains" class="theme-label">管理域名 *</label>
           <input
-            id="site_domain"
-            name="site_domain"
+            id="managed_domains"
+            name="managed_domains"
             type="text"
             required
             class="theme-input theme-input--wide"
-            placeholder="如 yet.la"
-            value="{{ site_settings.site_domain }}"
+            placeholder="如 yet.la go2.you"
+            value="{{ site_settings.managed_domains or site_settings.site_domain }}"
           />
-          <p class="theme-hint">仅输入域名，无需协议。用于限制短链入口与界面展示。</p>
+          <p class="theme-hint">空格分隔多个域名，首个为主域名。无需输入协议或路径。</p>
         </div>
         <div class="theme-field theme-field--mobile-condensed">
           <label for="short_code_length" class="theme-label">短链默认长度 *</label>

@@ -9,9 +9,37 @@
     >
       <div class="theme-form__grid theme-form__grid--two">
         <div class="theme-field">
+          <label for="short-link-domain-{{ item.id }}" class="theme-label">域名</label>
+          <select
+            id="short-link-domain-{{ item.id }}"
+            name="domain"
+            class="theme-select"
+            data-short-link-domain
+            data-prefix-display="[data-short-link-prefix-display-{{ item.id }}]"
+          >
+            {% set current_domain = item.domain or primary_domain %}
+            {% for domain in short_link_domains %}
+            {% set option_prefix = short_link_prefix_map.get(domain, short_link_prefix) %}
+            {% set option_display = short_link_display_prefix_map.get(domain, short_link_display_prefix) %}
+            <option
+              value="{{ domain }}"
+              data-prefix="{{ option_prefix }}"
+              data-display="{{ option_display }}"
+              {% if domain == current_domain %}selected{% endif %}
+            >
+              {{ domain }}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="theme-field">
           <label for="code-{{ item.id }}" class="theme-label">短链</label>
           <div class="theme-input-affix">
-            <span class="theme-input-affix__addon theme-input-affix__addon--prefix">{{ short_link_display_prefix }}</span>
+            {% set current_prefix = short_link_display_prefix_map.get(current_domain, short_link_display_prefix) %}
+            <span
+              class="theme-input-affix__addon theme-input-affix__addon--prefix"
+              data-short-link-prefix-display-{{ item.id }}
+            >{{ current_prefix }}</span>
             <input
               id="code-{{ item.id }}"
               name="code"
