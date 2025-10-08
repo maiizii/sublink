@@ -21,7 +21,13 @@ from .deps import (
     validate_credentials,
 )
 from .session import clear_session, get_session
-from .models import ShortLink, SiteSettings, SubdomainRedirect, User
+from .models import (
+    ShortLink,
+    SiteSettings,
+    SubdomainBlacklist,
+    SubdomainRedirect,
+    User,
+)
 from .settings_service import build_short_link_prefix, get_site_settings
 
 SUBDOMAIN_CODE_OPTIONS = [302, 301]
@@ -61,6 +67,14 @@ def _load_subdomains(db: Session, user: User) -> list[SubdomainRedirect]:
     return list(db.scalars(query).all())
 
 
+def _load_subdomain_blacklist(db: Session) -> list[SubdomainBlacklist]:
+    return list(
+        db.scalars(
+            select(SubdomainBlacklist).order_by(SubdomainBlacklist.label.asc())
+        ).all()
+    )
+
+
 def _load_users(db: Session) -> list[User]:
     return list(
         db.scalars(select(User).order_by(User.created_at.desc())).all()
@@ -70,7 +84,7 @@ def _load_users(db: Session) -> list[User]:
 def _generate_short_link_suggestion(db: Session, length: int) -> str:
     """Generate a random short link code suggestion that does not clash with existing ones."""
 
-    alphabet = string.ascii_letters + string.digits
+    alphabet = string.ascii_lowercase + string.digits
     attempts = max(length * 2, 10)
     for _ in range(attempts):
         candidate = "".join(secrets.choice(alphabet) for _ in range(length))
@@ -159,12 +173,15 @@ def admin_dashboard(
             "subdomain_code_options": SUBDOMAIN_CODE_OPTIONS,
             "show_user_column": current_user.is_admin,
             "short_link_example": f"{context['short_link_prefix']}example",
+            "subdomain_blacklist": _load_subdomain_blacklist(db)
+            if current_user.is_admin
+            else [],
         }
     )
     if current_user.is_admin and active_tab == "settings":
         if request.query_params.get("saved"):
             context["settings_feedback_html"] = (
-                "<div class=\"rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700\">"
+                "<div class=\"theme-feedback__message theme-feedback__message--success\">"
                 "站点设置已更新"
                 "</div>"
             )
@@ -363,6 +380,25 @@ def subdomain_table(
     context, _ = _context_with_settings(request, db, current_user)
     context.update({"subdomains": subdomains, "show_user_column": current_user.is_admin})
     return templates.TemplateResponse("admin/partials/subdomain_table.html", context)
+
+
+@router.get(
+    "/admin/subdomains/blacklist/table",
+    response_class=HTMLResponse,
+)
+def subdomain_blacklist_table(
+    request: Request,
+    admin: User = Depends(require_admin_user),
+    db: Session = Depends(get_db),
+) -> HTMLResponse:
+    """返回子域黑名单表格片段。"""
+
+    entries = _load_subdomain_blacklist(db)
+    context, _ = _context_with_settings(request, db, admin)
+    context.update({"subdomain_blacklist": entries})
+    return templates.TemplateResponse(
+        "admin/partials/subdomain_blacklist_table.html", context
+    )
 
 
 @router.get(

@@ -44,6 +44,22 @@ def test_admin_can_create_update_delete_user(client: "SimpleClient") -> None:
     assert deleted.headers.get("hx-trigger") == "refresh-users"
 
 
+def test_create_user_invalid_username(client: "SimpleClient") -> None:
+    response = client.post(
+        "/api/users",
+        json={
+            "username": "bad_name",
+            "email": "bad@example.com",
+            "password": "badpass",
+            "is_admin": False,
+        },
+        auth=ADMIN_AUTH,
+    )
+    assert response.status_code == 422
+    detail = response.json().get("detail", [])
+    assert any("用户名" in item.get("msg", "") for item in detail)
+
+
 def test_non_admin_cannot_access_user_management(client: "SimpleClient") -> None:
     client.post(
         "/api/users",

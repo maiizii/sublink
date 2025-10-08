@@ -20,6 +20,10 @@
               class="theme-input theme-input--wide"
               autocomplete="off"
               spellcheck="false"
+              pattern="^[a-z0-9](?:[a-z0-9-]{1,18}[a-z0-9])$"
+              minlength="3"
+              maxlength="20"
+              title="仅允许小写字母、数字或连字符，首尾为字母或数字，长度 3-20"
             />
           </div>
           <div class="theme-field theme-field--mobile-condensed">

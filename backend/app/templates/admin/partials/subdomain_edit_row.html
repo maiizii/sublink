@@ -36,6 +36,10 @@
               autocomplete="off"
               spellcheck="false"
               data-domain-input-field
+              pattern="^[a-z0-9](?:[a-z0-9-]{1,18}[a-z0-9])$"
+              minlength="3"
+              maxlength="20"
+              title="仅允许小写字母、数字或连字符，首尾为字母或数字，长度 3-20"
             />
             <span class="theme-input-affix__addon theme-input-affix__addon--suffix">.{{ base_domain }}</span>
             <input type="hidden" name="host" value="{{ item.host }}" data-domain-input-hidden />

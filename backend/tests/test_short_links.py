@@ -32,14 +32,25 @@ def test_create_short_link_conflict(client: "SimpleClient") -> None:
     assert conflict.json() == {"error": "短链接编码已存在"}
 
 
+def test_create_short_link_invalid_code(client: "SimpleClient") -> None:
+    response = client.post(
+        "/api/links",
+        json={"target_url": "https://example.com", "code": "-bad"},
+        auth=ADMIN_AUTH,
+    )
+    assert response.status_code == 422
+    detail = response.json().get("detail", [])
+    assert any("短链编码" in item.get("msg", "") for item in detail)
+
+
 def test_redirect_short_link_and_hits(client: "SimpleClient") -> None:
     client.post(
         "/api/links",
-        json={"target_url": "https://example.com/landing", "code": "go"},
+        json={"target_url": "https://example.com/landing", "code": "go1"},
         auth=ADMIN_AUTH,
     )
 
-    redirect = client.get("/go", headers={"host": "yet.la"}, follow_redirects=False)
+    redirect = client.get("/go1", headers={"host": "yet.la"}, follow_redirects=False)
     assert redirect.status_code == 302
     assert redirect.headers["location"] == "https://example.com/landing"
 
