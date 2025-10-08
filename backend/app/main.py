@@ -250,7 +250,9 @@ def _ensure_subdomain_not_blacklisted(db: Session, host: str, user: User) -> Non
         return
     exists = db.scalar(select(SubdomainBlacklist).where(SubdomainBlacklist.label == label))
     if exists:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail="子域前缀已在黑名单中")
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_ENTITY, detail="子域前缀已在屏蔽名单中"
+        )
 
 
 async def _parse_short_link_payload(request: Request) -> ShortLinkCreate:
@@ -334,7 +336,7 @@ async def _parse_subdomain_update_payload(
 async def _parse_subdomain_blacklist_payload(
     request: Request,
 ) -> SubdomainBlacklistCreate:
-    """解析子域黑名单表单或 JSON 载荷。"""
+    """解析子域屏蔽名单表单或 JSON 载荷。"""
 
     content_type = request.headers.get("content-type", "").lower()
     if content_type.startswith("application/json"):
@@ -465,6 +467,27 @@ async def _parse_site_settings_payload(request: Request) -> SiteSettingsUpdate:
         ) from exc
 
 
+def _translate_validation_message(message: str) -> str:
+    """将常见的 Pydantic 英文错误翻译为中文提示。"""
+
+    translations = {
+        "Field required": "必填项",
+        "Input should be a valid url": "请输入合法的 URL",
+        "Input should be a valid URL": "请输入合法的 URL",
+        "Input should be a valid integer": "请输入合法的整数",
+        "Input should be a valid string": "请输入合法的字符串",
+    }
+    if message in translations:
+        return translations[message]
+    if message.startswith("String should match pattern"):
+        return "字符串需符合指定格式"
+    if message.startswith("Input should be at least") and message.endswith("characters long"):
+        return "输入字符长度不足"
+    if message.startswith("Input should be at most") and message.endswith("characters long"):
+        return "输入字符长度过长"
+    return message
+
+
 def _format_validation_errors(detail: Any) -> str:
     """将 Pydantic 错误信息转换为可读字符串。"""
 
@@ -482,7 +505,8 @@ def _format_validation_errors(detail: Any) -> str:
                 ),
                 "请求",
             )
-            message = item.get("msg", "输入不合法")
+            raw_message = item.get("msg", "输入不合法")
+            message = _translate_validation_message(str(raw_message))
             messages.append(f"{field}: {message}")
         if messages:
             return "；".join(messages)
@@ -500,6 +524,8 @@ def _serialize_validation_detail(detail: Any) -> Any:
             serialized.append(item)
             continue
         converted = item.copy()
+        if isinstance(converted.get("msg"), str):
+            converted["msg"] = _translate_validation_message(converted["msg"])
         ctx = converted.get("ctx")
         if isinstance(ctx, dict):
             converted_ctx = {
@@ -801,7 +827,7 @@ def list_subdomain_blacklist(
     _admin: User = Depends(require_admin_user),
     db: Session = Depends(get_db),
 ) -> list[SubdomainBlacklist]:
-    """列出子域黑名单条目。"""
+    """列出子域屏蔽名单条目。"""
 
     entries = db.scalars(
         select(SubdomainBlacklist).order_by(SubdomainBlacklist.label.asc())
@@ -821,23 +847,23 @@ async def create_subdomain_blacklist_entry(
     _admin: User = Depends(require_admin_user),
     db: Session = Depends(get_db),
 ) -> SubdomainBlacklist | HTMLResponse:
-    """新增黑名单条目。"""
+    """新增屏蔽名单条目。"""
 
     existing = db.scalar(
         select(SubdomainBlacklist).where(SubdomainBlacklist.label == payload.label)
     )
     if existing:
-        raise HTTPException(status.HTTP_409_CONFLICT, detail="黑名单条目已存在")
+        raise HTTPException(status.HTTP_409_CONFLICT, detail="屏蔽名单条目已存在")
 
     entry = SubdomainBlacklist(label=payload.label)
     db.add(entry)
-    _commit_session(db, conflict_detail="黑名单条目已存在")
+    _commit_session(db, conflict_detail="屏蔽名单条目已存在")
     db.refresh(entry)
 
     hx_request = request.headers.get("hx-request") == "true"
     if hx_request:
         message = _feedback_html(
-            f"已加入子域黑名单：<code class=\"theme-feedback__code\">{entry.label}</code>",
+            f"已加入子域屏蔽名单：<code class=\"theme-feedback__code\">{entry.label}</code>",
             tone="success",
         )
         return HTMLResponse(
@@ -863,7 +889,7 @@ async def replace_subdomain_blacklist(
     _admin: User = Depends(require_admin_user),
     db: Session = Depends(get_db),
 ) -> list[SubdomainBlacklist] | HTMLResponse:
-    """替换整份子域黑名单列表。"""
+    """替换整份子域屏蔽名单列表。"""
 
     raw_labels = payload.labels.split()
     normalized_labels: list[str] = []
@@ -899,7 +925,7 @@ async def replace_subdomain_blacklist(
 
     hx_request = request.headers.get("hx-request") == "true"
     if hx_request:
-        message = _feedback_html("子域黑名单已保存", tone="success")
+        message = _feedback_html("子域屏蔽名单已保存", tone="success")
         return HTMLResponse(
             message,
             status_code=status.HTTP_200_OK,
@@ -918,18 +944,18 @@ def delete_subdomain_blacklist_entry(
     _admin: User = Depends(require_admin_user),
     db: Session = Depends(get_db),
 ) -> Response:
-    """删除黑名单条目。"""
+    """删除屏蔽名单条目。"""
 
     entry = db.get(SubdomainBlacklist, entry_id)
     if entry is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="黑名单条目不存在")
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="屏蔽名单条目不存在")
 
     db.delete(entry)
     _commit_session(db)
 
     hx_request = request.headers.get("hx-request") == "true"
     if hx_request:
-        message = _feedback_html("黑名单条目已删除", tone="warning")
+        message = _feedback_html("屏蔽名单条目已删除", tone="warning")
         return HTMLResponse(
             message,
             status_code=status.HTTP_200_OK,
