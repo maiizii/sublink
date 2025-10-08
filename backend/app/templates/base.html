@@ -1040,6 +1040,27 @@
         color: var(--theme-text-secondary);
       }
 
+      .theme-field__header {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+        justify-content: space-between;
+      }
+
+      .theme-field__header .theme-label {
+        margin: 0;
+      }
+
+      .theme-select--inline {
+        width: auto;
+        min-width: 10rem;
+      }
+
+      .theme-field__header .theme-select--inline {
+        flex: 0 0 auto;
+      }
+
       .theme-field.theme-form__span-full,
       .theme-field--constrained {
         width: min(100%, 720px);
@@ -1082,6 +1103,14 @@
         }
 
         .theme-field.theme-field--wide-desktop {
+          width: 100%;
+        }
+
+        .theme-field__header {
+          justify-content: flex-start;
+        }
+
+        .theme-select--inline {
           width: 100%;
         }
       }
