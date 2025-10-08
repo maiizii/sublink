@@ -3,8 +3,14 @@ from __future__ import annotations
 
 import re
 
+from .i18n import DEFAULT_LOCALE, translate
+
 
 _SLUG_PATTERN = re.compile(r"^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$")
+
+
+def _t(key: str, **params: str) -> str:
+    return translate(key, locale=DEFAULT_LOCALE, **params)
 
 
 def normalize_slug(value: str, *, field: str, enforce_length: bool = False) -> str:
@@ -16,11 +22,11 @@ def normalize_slug(value: str, *, field: str, enforce_length: bool = False) -> s
 
     normalized = value.strip().lower()
     if not normalized:
-        raise ValueError(f"{field}不能为空")
+        raise ValueError(_t("admin.validation.slugEmpty", field=field))
     if not _SLUG_PATTERN.fullmatch(normalized):
-        raise ValueError(f"{field}仅允许小写字母、数字或连字符，且首尾需为字母或数字")
+        raise ValueError(_t("admin.validation.slugInvalid", field=field))
     if enforce_length and not 3 <= len(normalized) <= 20:
-        raise ValueError(f"{field}长度需为 3-20 个字符")
+        raise ValueError(_t("admin.validation.slugLengthRange", field=field))
     return normalized
 
 

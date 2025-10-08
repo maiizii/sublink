@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="zh-CN" class="h-full bg-slate-50">
+<html lang="{{ locale }}" class="h-full bg-slate-50">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>{% block title %}{{ site_settings.site_domain }} 短链子域管理后台{% endblock %}</title>
+    <title>{% block title %}{{ _('admin.meta.title', site=site_settings.site_domain) }}{% endblock %}</title>
     <link rel="icon" type="image/png" href="{{ site_settings.icon_url }}" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -2448,6 +2448,9 @@
       }
     </style>
     <script src="/static/vendor/htmx-lite.js" defer></script>
+    <script>
+      window.SUBLINK_ADMIN_I18N = {{ get_translations('admin.js') | tojson }};
+    </script>
     <script src="/static/admin-dashboard.js" defer></script>
     <script>
       document.addEventListener("htmx:configRequest", function (event) {
@@ -2469,32 +2472,38 @@
               <div class="theme-hero__brand">
                 <img
                   src="{{ site_settings.logo_url }}"
-                  alt="{{ site_settings.site_domain }} 平台标识"
+                  alt="{{ _('admin.meta.logoAlt', site=site_settings.site_domain) }}"
                   class="theme-hero__brand-logo"
                 />
-                <span class="sr-only">{{ site_settings.site_domain }} Platform</span>
+                <span class="sr-only">
+                  {{ _('admin.meta.brandSr', site=site_settings.site_domain) }}
+                </span>
               </div>
             </div>
             <div class="theme-hero__toolbar">
               <div class="theme-hero__title-row">
                 <h1 class="theme-hero__title">
                   <span class="theme-hero__title-text theme-hero__title-text--full"
-                    >{{ site_settings.site_domain }} 短链子域管理后台</span
+                    >{{ _('admin.hero.title', site=site_settings.site_domain) }}</span
                   >
                   <span class="theme-hero__title-text theme-hero__title-text--compact"
-                    >{{ site_settings.site_domain }} 短链子域管理后台</span
+                    >{{ _('admin.hero.title', site=site_settings.site_domain) }}</span
                   >
                 </h1>
               </div>
               <div class="theme-hero__actions">
-                <div class="theme-theme-switch" role="group" aria-label="主题切换">
+                <div
+                  class="theme-theme-switch"
+                  role="group"
+                  aria-label="{{ _('admin.hero.themeSwitchLabel') }}"
+                >
                   <button
                     type="button"
                     class="theme-toggle"
                     data-theme-toggle="aurora"
                     aria-pressed="false"
                   >
-                    <span class="sr-only">切换到亮色主题</span>
+                    <span class="sr-only">{{ _('admin.hero.toggleLight') }}</span>
                     <svg viewBox="0 0 24 24" aria-hidden="true">
                       <circle cx="12" cy="12" r="5"></circle>
                       <path d="M12 1v2m0 18v2m11-11h-2M3 12H1m16.95-6.95-1.41 1.41M8.46 17.54l-1.41 1.41M17.54 17.54l-1.41-1.41M7.05 7.05 5.64 5.64"></path>
@@ -2506,7 +2515,7 @@
                     data-theme-toggle="nebula"
                     aria-pressed="false"
                   >
-                    <span class="sr-only">切换到暗色主题</span>
+                    <span class="sr-only">{{ _('admin.hero.toggleDark') }}</span>
                     <svg viewBox="0 0 24 24" aria-hidden="true">
                       <path d="M21 12.79A9 9 0 0 1 11.21 3 7 7 0 1 0 21 12.79z"></path>
                     </svg>
@@ -2516,7 +2525,7 @@
                 <a
                   class="theme-button theme-button--ghost theme-button--icon theme-button--password"
                   href="/admin/password"
-                  aria-label="修改密码"
+                  aria-label="{{ _('admin.hero.changePasswordAria') }}"
                 >
                   <svg
                     viewBox="0 0 24 24"
@@ -2530,13 +2539,13 @@
                     <path d="M18 9v6"></path>
                     <path d="M20 11v2"></path>
                   </svg>
-                  <span class="sr-only">改密</span>
+                  <span class="sr-only">{{ _('admin.hero.changePasswordShort') }}</span>
                 </a>
                 <a
                   class="theme-button theme-button--ghost theme-button--icon theme-button--logout"
                   href="/admin/logout"
-                  aria-label="退出登录"
-                  onclick="return confirm('确认退出登录？')"
+                  aria-label="{{ _('admin.hero.logoutAria') }}"
+                  onclick="return confirm('{{ _('admin.confirmations.logout') }}')"
                 >
                   <svg
                     viewBox="0 0 24 24"
@@ -2549,7 +2558,7 @@
                     <path d="M10 17l5-5-5-5"></path>
                     <path d="M15 12H3"></path>
                   </svg>
-                  <span class="sr-only">退出</span>
+                  <span class="sr-only">{{ _('admin.hero.logoutShort') }}</span>
                 </a>
                 {% endif %}
               </div>

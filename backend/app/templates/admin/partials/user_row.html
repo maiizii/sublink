@@ -13,9 +13,9 @@
   <td class="theme-table__cell theme-table__cell--muted">{{ item.email }}</td>
   <td class="theme-table__cell">
     {% if item.is_admin %}
-    <span class="theme-pill">管理员</span>
+    <span class="theme-pill">{{ _('admin.roles.admin') }}</span>
     {% else %}
-    普通用户
+    {{ _('admin.roles.standard') }}
     {% endif %}
   </td>
   <td class="theme-table__cell theme-table__cell--muted">
@@ -30,7 +30,7 @@
         hx-target="closest tr"
         hx-swap="outerHTML"
       >
-        编辑
+        {{ _('admin.buttons.edit') }}
       </button>
       <button
         type="button"
@@ -38,45 +38,50 @@
         hx-delete="/api/users/{{ item.id }}"
         hx-target="#user-feedback"
         hx-swap="innerHTML"
-        hx-confirm="确认删除该用户？"
+        hx-confirm="{{ _('admin.confirmations.deleteUser') }}"
         data-success-event="refresh-users"
       >
-        删除
+        {{ _('admin.buttons.delete') }}
       </button>
     </div>
     <details class="theme-table__details">
-      <summary class="theme-table__details-toggle" aria-label="展开操作菜单">
+      <summary
+        class="theme-table__details-toggle"
+        aria-label="{{ _('admin.aria.expandActions') }}"
+      >
         <svg viewBox="0 0 24 24" aria-hidden="true">
           <circle cx="5" cy="12" r="1.8"></circle>
           <circle cx="12" cy="12" r="1.8"></circle>
           <circle cx="19" cy="12" r="1.8"></circle>
         </svg>
-        <span class="sr-only">展开操作菜单</span>
+        <span class="sr-only">{{ _('admin.aria.expandActions') }}</span>
       </summary>
       <div class="theme-table__details-panel">
         <div class="theme-table__details-summary">
-          <span class="theme-table__details-title">用户名</span>
+          <span class="theme-table__details-title"
+            >{{ _('admin.tables.details.username') }}</span
+          >
           <div class="theme-table__details-primary">
             <span class="theme-table__details-meta">{{ item.username }}</span>
           </div>
         </div>
         <dl class="theme-table__details-list">
           <div class="theme-table__details-item">
-            <dt>邮箱</dt>
+            <dt>{{ _('admin.tables.details.email') }}</dt>
             <dd>{{ item.email }}</dd>
           </div>
           <div class="theme-table__details-item">
-            <dt>权限</dt>
+            <dt>{{ _('admin.tables.details.role') }}</dt>
             <dd>
               {% if item.is_admin %}
-              管理员
+              {{ _('admin.roles.admin') }}
               {% else %}
-              普通用户
+              {{ _('admin.roles.standard') }}
               {% endif %}
             </dd>
           </div>
           <div class="theme-table__details-item">
-            <dt>创建时间</dt>
+            <dt>{{ _('admin.tables.details.createdAt') }}</dt>
             <dd>
               {{ item.created_at.strftime('%Y-%m-%d %H:%M') if item.created_at else '-' }}
             </dd>
@@ -90,7 +95,7 @@
             hx-target="closest tr"
             hx-swap="outerHTML"
           >
-            编辑
+            {{ _('admin.buttons.edit') }}
           </button>
           <button
             type="button"
@@ -98,10 +103,10 @@
             hx-delete="/api/users/{{ item.id }}"
             hx-target="#user-feedback"
             hx-swap="innerHTML"
-            hx-confirm="确认删除该用户？"
+            hx-confirm="{{ _('admin.confirmations.deleteUser') }}"
             data-success-event="refresh-users"
           >
-            删除
+            {{ _('admin.buttons.delete') }}
           </button>
         </div>
       </div>

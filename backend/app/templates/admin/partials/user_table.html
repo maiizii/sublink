@@ -2,13 +2,15 @@
 <table class="theme-table">
   <thead>
     <tr>
-      <th scope="col">用户名</th>
-      <th scope="col">邮箱</th>
-      <th scope="col">权限</th>
-      <th scope="col">创建时间</th>
+      <th scope="col">{{ _('admin.tables.headers.user') }}</th>
+      <th scope="col">{{ _('admin.tables.headers.email') }}</th>
+      <th scope="col">{{ _('admin.tables.headers.role') }}</th>
+      <th scope="col">{{ _('admin.tables.headers.createdAt') }}</th>
       <th scope="col" class="theme-table__col-actions">
         <span class="theme-table__col-actions-label">
-          <span class="theme-table__col-actions-text">操作</span>
+          <span class="theme-table__col-actions-text"
+            >{{ _('admin.tables.headers.actions') }}</span
+          >
         </span>
       </th>
     </tr>
@@ -20,5 +22,5 @@
   </tbody>
 </table>
 {% else %}
-<div class="theme-table__empty">暂无用户记录。</div>
+<div class="theme-table__empty">{{ _('admin.tables.empty.users') }}</div>
 {% endif %}

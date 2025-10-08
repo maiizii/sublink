@@ -2,7 +2,7 @@
 <html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
-    <title>默认站点</title>
+    <title data-i18n="metaTitle"></title>
     <style>
       body {
         font-family: system-ui, sans-serif;
@@ -16,7 +16,12 @@
     </style>
   </head>
   <body>
-    <h1>yet.la</h1>
-    <p>未匹配的子域将回退到本默认站点。</p>
+    <h1 data-i18n="heading"></h1>
+    <p data-i18n="description"></p>
+    <script src="../lang/i18n.js"></script>
+    <script src="../lang/zh-CN.js"></script>
+    <script>
+      window.applyTranslations('default');
+    </script>
   </body>
 </html>

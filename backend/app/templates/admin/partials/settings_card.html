@@ -1,8 +1,10 @@
 <section class="theme-card" id="site-settings-card">
   <div class="theme-card__header">
-    <h2 class="theme-card__title">站点设置</h2>
+    <h2 class="theme-card__title">
+      {{ _('admin.sections.settings.title') }}
+    </h2>
     <p class="theme-card__subtitle">
-      配置基础域名、短链生成规则与品牌资源。
+      {{ _('admin.sections.settings.subtitle') }}
     </p>
   </div>
   <div class="theme-card__body">
@@ -20,20 +22,26 @@
     >
       <div class="theme-form__grid theme-form__grid--two-fixed">
         <div class="theme-field theme-field--mobile-condensed">
-          <label for="managed_domains" class="theme-label">管理域名 *</label>
+          <label for="managed_domains" class="theme-label"
+            >{{ _('admin.labels.managedDomains') }} *</label
+          >
           <input
             id="managed_domains"
             name="managed_domains"
             type="text"
             required
             class="theme-input theme-input--wide"
-            placeholder="如 yet.la go2.you"
+            placeholder="{{ _('admin.placeholders.managedDomains') }}"
             value="{{ site_settings.managed_domains or site_settings.site_domain }}"
           />
-          <p class="theme-hint">空格分隔多个域名，首个为主域名。无需输入协议或路径。</p>
+          <p class="theme-hint">
+            {{ _('admin.helpers.managedDomains') }}
+          </p>
         </div>
         <div class="theme-field theme-field--mobile-condensed">
-          <label for="short_code_length" class="theme-label">短链默认长度 *</label>
+          <label for="short_code_length" class="theme-label"
+            >{{ _('admin.labels.shortCodeLength') }} *</label
+          >
           <input
             id="short_code_length"
             name="short_code_length"
@@ -44,49 +52,57 @@
             class="theme-input theme-input--compact"
             value="{{ site_settings.short_code_length }}"
           />
-          <p class="theme-hint">用于自动生成短链编码，可随时调整。</p>
+          <p class="theme-hint">{{ _('admin.helpers.shortCodeLength') }}</p>
         </div>
         <div class="theme-field theme-form__span-full theme-field--mobile-condensed">
-          <label for="short_link_path" class="theme-label">短链路径前缀 *</label>
+          <label for="short_link_path" class="theme-label"
+            >{{ _('admin.labels.shortLinkPath') }} *</label
+          >
           <input
             id="short_link_path"
             name="short_link_path"
             type="text"
             required
             class="theme-input theme-input--wide"
-            placeholder="如 / 或 /r/"
+            placeholder="{{ _('admin.placeholders.shortLinkPath') }}"
             value="{{ site_settings.short_link_path }}"
           />
-          <p class="theme-hint">访问短链时的路径前缀，例如 /r/ 将生成 {{ short_link_prefix }}r/code。</p>
+          <p class="theme-hint">
+            {{ _('admin.helpers.shortLinkPath', example=short_link_example) }}
+          </p>
         </div>
         <div class="theme-field theme-form__span-full theme-field--mobile-condensed">
-          <label for="logo_url" class="theme-label">Logo 图片地址 *</label>
+          <label for="logo_url" class="theme-label"
+            >{{ _('admin.labels.logoUrl') }} *</label
+          >
           <input
             id="logo_url"
             name="logo_url"
             type="url"
             required
             class="theme-input theme-input--wide"
-            placeholder="https://example.com/logo.png"
+            placeholder="{{ _('admin.placeholders.logoUrl') }}"
             value="{{ site_settings.logo_url }}"
           />
         </div>
         <div class="theme-field theme-form__span-full theme-field--mobile-condensed">
-          <label for="icon_url" class="theme-label">网站 Icon 地址 *</label>
+          <label for="icon_url" class="theme-label"
+            >{{ _('admin.labels.iconUrl') }} *</label
+          >
           <input
             id="icon_url"
             name="icon_url"
             type="url"
             required
             class="theme-input theme-input--wide"
-            placeholder="https://example.com/favicon.png"
+            placeholder="{{ _('admin.placeholders.iconUrl') }}"
             value="{{ site_settings.icon_url }}"
           />
         </div>
       </div>
       <div class="theme-form__footer theme-form__footer--center">
         <button type="submit" class="theme-button theme-button--solid">
-          保存设置
+          {{ _('admin.buttons.saveSettings') }}
         </button>
       </div>
     </form>

@@ -10,7 +10,9 @@
       <div class="theme-form__grid theme-form__grid--two-fixed">
         <div class="theme-form__grid theme-form__grid--user-identity theme-form__span-full">
           <div class="theme-field theme-field--mobile-condensed">
-            <label for="edit-username-{{ item.id }}" class="theme-label">用户名</label>
+            <label for="edit-username-{{ item.id }}" class="theme-label"
+              >{{ _('admin.labels.username') }}</label
+            >
             <input
               id="edit-username-{{ item.id }}"
               name="username"
@@ -21,11 +23,13 @@
               autocomplete="off"
               spellcheck="false"
               pattern="^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$"
-              title="仅允许小写字母、数字或连字符，首尾需为字母或数字"
+              title="{{ _('admin.validation.slugPattern') }}"
             />
           </div>
           <div class="theme-field theme-field--mobile-condensed">
-            <label for="edit-email-{{ item.id }}" class="theme-label">邮箱</label>
+            <label for="edit-email-{{ item.id }}" class="theme-label"
+              >{{ _('admin.labels.email') }}</label
+            >
             <input
               id="edit-email-{{ item.id }}"
               name="email"
@@ -36,42 +40,52 @@
             />
           </div>
           <div class="theme-field">
-            <label for="edit-role-{{ item.id }}" class="theme-label">权限</label>
+            <label for="edit-role-{{ item.id }}" class="theme-label"
+              >{{ _('admin.labels.permissions') }}</label
+            >
             <select
               id="edit-role-{{ item.id }}"
               name="is_admin"
               class="theme-input theme-input--compact"
             >
-              <option value="0" {% if not item.is_admin %}selected{% endif %}>普通用户</option>
-              <option value="1" {% if item.is_admin %}selected{% endif %}>管理员</option>
+              <option value="0" {% if not item.is_admin %}selected{% endif %}>
+                {{ _('admin.roles.standard') }}
+              </option>
+              <option value="1" {% if item.is_admin %}selected{% endif %}>
+                {{ _('admin.roles.admin') }}
+              </option>
             </select>
           </div>
         </div>
         <div class="theme-field theme-field--mobile-condensed">
-          <label for="edit-password-{{ item.id }}" class="theme-label">新密码</label>
+          <label for="edit-password-{{ item.id }}" class="theme-label"
+            >{{ _('admin.labels.newPassword') }}</label
+          >
           <input
             id="edit-password-{{ item.id }}"
             name="password"
             type="password"
             minlength="6"
             class="theme-input theme-input--wide"
-            placeholder="留空则不修改"
+            placeholder="{{ _('admin.placeholders.passwordOptional') }}"
           />
         </div>
         <div class="theme-field theme-field--mobile-condensed">
-          <label for="edit-password-confirm-{{ item.id }}" class="theme-label">确认密码</label>
+          <label for="edit-password-confirm-{{ item.id }}" class="theme-label"
+            >{{ _('admin.labels.confirmNewPassword') }}</label
+          >
           <input
             id="edit-password-confirm-{{ item.id }}"
             name="password_confirm"
             type="password"
             minlength="6"
             class="theme-input theme-input--wide"
-            placeholder="再次输入新密码"
+            placeholder="{{ _('admin.placeholders.passwordConfirm') }}"
           />
         </div>
       </div>
       <div class="theme-form__footer">
-        <p class="theme-helper">保存后用户信息会立即更新。</p>
+        <p class="theme-helper">{{ _('admin.helpers.updateUser') }}</p>
         <div class="theme-form__actions">
           <button
             type="button"
@@ -80,10 +94,10 @@
             hx-target="closest tr"
             hx-swap="outerHTML"
           >
-            取消
+            {{ _('admin.buttons.cancel') }}
           </button>
           <button type="submit" class="theme-button theme-button--solid theme-button--sm">
-            保存
+            {{ _('admin.buttons.save') }}
           </button>
         </div>
       </div>

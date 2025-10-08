@@ -70,6 +70,7 @@ from .settings_service import (
 )
 from .subdomain_service import ensure_default_subdomain_blacklist
 from .validators import extract_subdomain_label, normalize_slug
+from .i18n import DEFAULT_LOCALE, translate
 
 MAX_CODE_ATTEMPTS = 10
 
@@ -87,9 +88,15 @@ def _feedback_html(message: str, *, tone: str = "info") -> str:
     tone_class = _FEEDBACK_TONES.get(tone, _FEEDBACK_TONES["info"])
     return f'<div class="theme-feedback__message {tone_class}">{message}</div>'
 
+
+def _t(key: str, **params: Any) -> str:
+    """Translate helper that defaults to the configured locale."""
+
+    return translate(key, locale=DEFAULT_LOCALE, **params)
+
 app = FastAPI(
     title="SubLink Redirect API",
-    description="管理短链接与子域跳转的受保护接口，并提供公共重定向入口。",
+    description=_t("admin.api.docs.description"),
     version="0.2.0",
     docs_url=None,
     redoc_url=None,
@@ -171,7 +178,10 @@ def _generate_unique_code(db: Session, length: int, domain: str) -> str:
         )
         if not exists:
             return candidate
-    raise HTTPException(status.HTTP_409_CONFLICT, detail="无法生成唯一的短链接编码")
+    raise HTTPException(
+        status.HTTP_409_CONFLICT,
+        detail=_t("admin.api.errors.shortLinkUnavailable"),
+    )
 
 
 def _compose_redirect_target(
@@ -207,7 +217,10 @@ def _decode_urlencoded_form(body: bytes, charset: str = "utf-8") -> dict[str, An
     try:
         text = body.decode(charset)
     except UnicodeDecodeError as exc:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="表单内容解码失败") from exc
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            detail=_t("admin.api.errors.formDecodeFailed"),
+        ) from exc
     return {key: value for key, value in parse_qsl(text, keep_blank_values=False)}
 
 
@@ -239,7 +252,7 @@ async def _read_form_data(request: Request, content_type: str) -> dict[str, Any]
     except AssertionError as exc:  # python-multipart 未安装
         raise HTTPException(
             status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
-            detail="缺少 python-multipart 依赖，无法解析表单上传",
+            detail=_t("admin.api.errors.missingMultipart"),
         ) from exc
     return {key: value for key, value in form.multi_items()}
 
@@ -248,7 +261,7 @@ def _ensure_slug_length(value: str, *, field: str) -> None:
     if not 3 <= len(value) <= 20:
         raise HTTPException(
             status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=f"{field}长度需为 3-20 个字符",
+            detail=_t("admin.validation.slugLength", field=field),
         )
 
 
@@ -256,14 +269,20 @@ def _ensure_short_link_permission(short_link: ShortLink, user: User) -> None:
     if user.is_admin:
         return
     if short_link.user_id != user.id:
-        raise HTTPException(status.HTTP_403_FORBIDDEN, detail="无权操作该短链")
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN,
+            detail=_t("admin.api.errors.shortLinkForbidden"),
+        )
 
 
 def _ensure_subdomain_permission(redirect: SubdomainRedirect, user: User) -> None:
     if user.is_admin:
         return
     if redirect.user_id != user.id:
-        raise HTTPException(status.HTTP_403_FORBIDDEN, detail="无权操作该子域")
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN,
+            detail=_t("admin.api.errors.subdomainForbidden"),
+        )
 
 
 def _ensure_subdomain_not_blacklisted(db: Session, host: str, user: User) -> None:
@@ -275,7 +294,8 @@ def _ensure_subdomain_not_blacklisted(db: Session, host: str, user: User) -> Non
     exists = db.scalar(select(SubdomainBlacklist).where(SubdomainBlacklist.label == label))
     if exists:
         raise HTTPException(
-            status.HTTP_422_UNPROCESSABLE_ENTITY, detail="子域前缀已在屏蔽名单中"
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=_t("admin.api.errors.subdomainBlacklisted"),
         )
 
 
@@ -413,7 +433,7 @@ async def _parse_user_create_payload(request: Request) -> UserCreate:
         if data.get("password") != data.get("password_confirm"):
             raise HTTPException(
                 status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail=[{"loc": ("body", "password_confirm"), "msg": "两次输入的密码不一致"}],
+                detail=[{"loc": ("body", "password_confirm"), "msg": _t("admin.validation.passwordMismatch")}],
             )
         data.pop("password_confirm", None)
     if "is_admin" in data and not isinstance(data["is_admin"], bool):
@@ -440,7 +460,7 @@ async def _parse_user_update_payload(request: Request) -> UserUpdate:
         if data.get("password") != data.get("password_confirm"):
             raise HTTPException(
                 status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail=[{"loc": ("body", "password_confirm"), "msg": "两次输入的密码不一致"}],
+                detail=[{"loc": ("body", "password_confirm"), "msg": _t("admin.validation.passwordMismatch")}],
             )
         data.pop("password_confirm", None)
     if "password" in data and (data["password"] or "").strip() == "":
@@ -499,20 +519,20 @@ def _translate_validation_message(message: str) -> str:
     """将常见的 Pydantic 英文错误翻译为中文提示。"""
 
     translations = {
-        "Field required": "必填项",
-        "Input should be a valid url": "请输入合法的 URL",
-        "Input should be a valid URL": "请输入合法的 URL",
-        "Input should be a valid integer": "请输入合法的整数",
-        "Input should be a valid string": "请输入合法的字符串",
+        "Field required": _t("admin.validation.fieldRequired"),
+        "Input should be a valid url": _t("admin.validation.urlInvalid"),
+        "Input should be a valid URL": _t("admin.validation.urlInvalid"),
+        "Input should be a valid integer": _t("admin.validation.integerInvalid"),
+        "Input should be a valid string": _t("admin.validation.stringInvalid"),
     }
     if message in translations:
         return translations[message]
     if message.startswith("String should match pattern"):
-        return "字符串需符合指定格式"
+        return _t("admin.validation.pattern")
     if message.startswith("Input should be at least") and message.endswith("characters long"):
-        return "输入字符长度不足"
+        return _t("admin.validation.tooShort")
     if message.startswith("Input should be at most") and message.endswith("characters long"):
-        return "输入字符长度过长"
+        return _t("admin.validation.tooLong")
     return message
 
 
@@ -520,13 +540,14 @@ def _translate_field_name(field: str) -> str:
     """将字段标识转换为更友好的中文标签。"""
 
     mapping = {
-        "code": "短链代码",
-        "host": "子域前缀",
-        "labels": "屏蔽前缀列表",
-        "new_password": "新密码",
-        "password": "密码",
-        "target_url": "目标地址",
-        "username": "用户名",
+        "code": _t("admin.fields.shortLinkCode"),
+        "host": _t("admin.fields.subdomainPrefix"),
+        "labels": _t("admin.fields.blacklist"),
+        "new_password": _t("admin.fields.newPassword"),
+        "password": _t("admin.fields.password"),
+        "target_url": _t("admin.labels.targetUrl"),
+        "username": _t("admin.fields.username"),
+        "email": _t("admin.fields.email"),
     }
     return mapping.get(field, field)
 
@@ -546,10 +567,10 @@ def _format_validation_errors(detail: Any) -> str:
                     for part in loc
                     if isinstance(part, str) and part not in {"body", "__root__"}
                 ),
-                "请求",
+                _t("admin.fields.request"),
             )
             field = _translate_field_name(field)
-            raw_message = item.get("msg", "输入不合法")
+            raw_message = item.get("msg", _t("admin.validation.stringInvalid"))
             message = _translate_validation_message(str(raw_message))
             messages.append(f"{field}: {message}")
         if messages:
@@ -588,13 +609,13 @@ def _commit_session(db: Session, conflict_detail: str | None = None) -> None:
         db.commit()
     except IntegrityError as exc:
         db.rollback()
-        detail = conflict_detail or "唯一约束冲突"
+        detail = conflict_detail or _t("admin.api.errors.uniqueConstraint")
         raise HTTPException(status.HTTP_409_CONFLICT, detail=detail) from exc
     except SQLAlchemyError as exc:  # pragma: no cover - 依赖数据库环境
         db.rollback()
         raise HTTPException(
             status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="数据库写入失败，请稍后再试",
+            detail=_t("admin.api.errors.databaseWriteFailed"),
         ) from exc
 
 
@@ -641,7 +662,7 @@ async def update_site_settings_endpoint(
     short_link_prefix = build_short_link_prefix(settings)
     hx_request = request.headers.get("hx-request") == "true"
     if hx_request:
-        feedback_html = _feedback_html("站点设置已更新", tone="success")
+    feedback_html = _feedback_html(_t("admin.feedback.settingsSaved"), tone="success")
         template = admin_templates.get_template("admin/partials/settings_card.html")
         content = template.render(
             {
@@ -697,17 +718,23 @@ async def create_short_link(
     primary_domain = get_primary_domain(settings)
     domain = payload.domain or primary_domain
     if domain not in managed_domains:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail="域名不在管理列表中")
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=_t("admin.api.errors.domainNotManaged"),
+        )
 
     code = payload.code
     if code and not current_user.is_admin:
-        _ensure_slug_length(code, field="短链编码")
+        _ensure_slug_length(code, field=_t("admin.fields.shortLinkCode"))
     if code:
         exists = db.scalar(
             select(ShortLink).where(ShortLink.code == code, ShortLink.domain == domain)
         )
         if exists:
-            raise HTTPException(status.HTTP_409_CONFLICT, detail="短链接编码已存在")
+            raise HTTPException(
+                status.HTTP_409_CONFLICT,
+                detail=_t("admin.api.errors.shortLinkCodeExists"),
+            )
     else:
         code = _generate_unique_code(db, settings.short_code_length, domain)
 
@@ -718,12 +745,15 @@ async def create_short_link(
         user_id=current_user.id,
     )
     db.add(short_link)
-    _commit_session(db, conflict_detail="短链接编码已存在")
+    _commit_session(db, conflict_detail=_t("admin.api.errors.shortLinkCodeExists"))
     db.refresh(short_link)
     hx_request = request.headers.get("hx-request") == "true"
     if hx_request:
         message = _feedback_html(
-            f"短链创建成功：<code class=\"theme-feedback__code\">{short_link.code}</code>",
+            _t(
+                "admin.api.feedback.shortLinkCreated",
+                code=short_link.code,
+            ),
             tone="success",
         )
         return HTMLResponse(
@@ -747,13 +777,16 @@ def delete_short_link(
 
     short_link = db.get(ShortLink, link_id)
     if short_link is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="短链接不存在")
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND,
+            detail=_t("admin.api.errors.shortLinkNotFound"),
+        )
     _ensure_short_link_permission(short_link, current_user)
     db.delete(short_link)
     _commit_session(db)
     hx_request = request.headers.get("hx-request") == "true"
     if hx_request:
-        message = _feedback_html("短链已删除", tone="warning")
+        message = _feedback_html(_t("admin.api.feedback.shortLinkDeleted"), tone="warning")
         return HTMLResponse(
             message,
             status_code=status.HTTP_200_OK,
@@ -776,18 +809,24 @@ async def update_short_link(
 
     short_link = db.get(ShortLink, link_id)
     if short_link is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="短链接不存在")
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND,
+            detail=_t("admin.api.errors.shortLinkNotFound"),
+        )
     _ensure_short_link_permission(short_link, current_user)
 
     settings = get_site_settings(db)
     managed_domains = get_managed_domains(settings)
     target_domain = payload.domain or short_link.domain
     if target_domain not in managed_domains:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail="域名不在管理列表中")
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=_t("admin.api.errors.domainNotManaged"),
+        )
 
     if payload.code != short_link.code:
         if not current_user.is_admin:
-            _ensure_slug_length(payload.code, field="短链编码")
+            _ensure_slug_length(payload.code, field=_t("admin.fields.shortLinkCode"))
 
     if payload.code != short_link.code or target_domain != short_link.domain:
         exists = db.scalar(
@@ -796,7 +835,10 @@ async def update_short_link(
             .where(ShortLink.id != short_link.id)
         )
         if exists:
-            raise HTTPException(status.HTTP_409_CONFLICT, detail="短链接编码已存在")
+            raise HTTPException(
+                status.HTTP_409_CONFLICT,
+                detail=_t("admin.api.errors.shortLinkCodeExists"),
+            )
 
     short_link.code = payload.code
     short_link.domain = target_domain
@@ -804,12 +846,12 @@ async def update_short_link(
     if short_link.user_id is None:
         short_link.user_id = current_user.id
     db.add(short_link)
-    _commit_session(db, conflict_detail="短链接编码已存在")
+    _commit_session(db, conflict_detail=_t("admin.api.errors.shortLinkCodeExists"))
     db.refresh(short_link)
 
     hx_request = request.headers.get("hx-request") == "true"
     if hx_request:
-        message = _feedback_html("短链已更新", tone="success")
+        message = _feedback_html(_t("admin.api.feedback.shortLinkUpdated"), tone="success")
         context, _ = _admin_context_with_settings(request, db, current_user)
         context.update(
             {
@@ -869,15 +911,21 @@ async def create_subdomain(
     if not current_user.is_admin:
         label = extract_subdomain_label(host)
         if label:
-            _ensure_slug_length(label, field="子域前缀")
+            _ensure_slug_length(label, field=_t("admin.fields.subdomainPrefix"))
     _ensure_subdomain_not_blacklisted(db, host, current_user)
     existing = db.scalar(select(SubdomainRedirect).where(SubdomainRedirect.host == host))
     if existing:
-        raise HTTPException(status.HTTP_409_CONFLICT, detail="子域跳转已存在")
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            detail=_t("admin.api.errors.subdomainExists"),
+        )
 
     matched_domain = _match_managed_domain(host, managed_domains)
     if matched_domain is None:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail="域名不在管理列表中")
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=_t("admin.api.errors.domainNotManaged"),
+        )
 
     redirect = SubdomainRedirect(
         host=host,
@@ -887,12 +935,12 @@ async def create_subdomain(
         user_id=current_user.id,
     )
     db.add(redirect)
-    _commit_session(db, conflict_detail="子域跳转已存在")
+    _commit_session(db, conflict_detail=_t("admin.api.errors.subdomainExists"))
     db.refresh(redirect)
 
     hx_request = request.headers.get("hx-request") == "true"
     if hx_request:
-        message = _feedback_html("子域跳转已创建", tone="success")
+        message = _feedback_html(_t("admin.api.feedback.subdomainCreated"), tone="success")
         return HTMLResponse(
             message,
             status_code=status.HTTP_201_CREATED,
@@ -937,17 +985,20 @@ async def create_subdomain_blacklist_entry(
         select(SubdomainBlacklist).where(SubdomainBlacklist.label == payload.label)
     )
     if existing:
-        raise HTTPException(status.HTTP_409_CONFLICT, detail="屏蔽名单条目已存在")
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            detail=_t("admin.api.errors.blacklistExists"),
+        )
 
     entry = SubdomainBlacklist(label=payload.label)
     db.add(entry)
-    _commit_session(db, conflict_detail="屏蔽名单条目已存在")
+    _commit_session(db, conflict_detail=_t("admin.api.errors.blacklistExists"))
     db.refresh(entry)
 
     hx_request = request.headers.get("hx-request") == "true"
     if hx_request:
         message = _feedback_html(
-            f"已加入子域屏蔽名单：<code class=\"theme-feedback__code\">{entry.label}</code>",
+            _t("admin.api.feedback.blacklistEntryAdded", label=entry.label),
             tone="success",
         )
         return HTMLResponse(
@@ -980,7 +1031,7 @@ async def replace_subdomain_blacklist(
     seen: set[str] = set()
     for raw in raw_labels:
         try:
-            normalized = normalize_slug(raw, field="子域")
+            normalized = normalize_slug(raw, field=_t("admin.fields.subdomain"))
         except ValueError as exc:  # pragma: no cover - 输入校验
             raise HTTPException(
                 status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)
@@ -1009,7 +1060,7 @@ async def replace_subdomain_blacklist(
 
     hx_request = request.headers.get("hx-request") == "true"
     if hx_request:
-        message = _feedback_html("子域屏蔽名单已保存", tone="success")
+        message = _feedback_html(_t("admin.api.feedback.blacklistSaved"), tone="success")
         return HTMLResponse(
             message,
             status_code=status.HTTP_200_OK,
@@ -1032,14 +1083,17 @@ def delete_subdomain_blacklist_entry(
 
     entry = db.get(SubdomainBlacklist, entry_id)
     if entry is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="屏蔽名单条目不存在")
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND,
+            detail=_t("admin.api.errors.blacklistNotFound"),
+        )
 
     db.delete(entry)
     _commit_session(db)
 
     hx_request = request.headers.get("hx-request") == "true"
     if hx_request:
-        message = _feedback_html("屏蔽名单条目已删除", tone="warning")
+        message = _feedback_html(_t("admin.api.feedback.blacklistDeleted"), tone="warning")
         return HTMLResponse(
             message,
             status_code=status.HTTP_200_OK,
@@ -1080,7 +1134,10 @@ async def create_user(
 
     existing = db.scalar(select(User).where(User.username == payload.username))
     if existing is not None:
-        raise HTTPException(status.HTTP_409_CONFLICT, detail="用户名已存在")
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            detail=_t("admin.api.errors.usernameExists"),
+        )
 
     user = User(
         username=payload.username,
@@ -1089,12 +1146,12 @@ async def create_user(
         is_admin=payload.is_admin,
     )
     db.add(user)
-    _commit_session(db, conflict_detail="用户名已存在")
+    _commit_session(db, conflict_detail=_t("admin.api.errors.usernameExists"))
     db.refresh(user)
 
     hx_request = request.headers.get("hx-request") == "true"
     if hx_request:
-        message = _feedback_html("用户创建成功", tone="success")
+        message = _feedback_html(_t("admin.api.feedback.userCreated"), tone="success")
         return HTMLResponse(
             message,
             status_code=status.HTTP_201_CREATED,
@@ -1121,15 +1178,24 @@ async def update_user(
 
     user = db.get(User, user_id)
     if user is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="用户不存在")
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND,
+            detail=_t("admin.api.errors.userNotFound"),
+        )
 
     if user.id == admin.id and not payload.is_admin:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="无法取消自身管理员权限")
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            detail=_t("admin.api.errors.cannotDowngradeSelf"),
+        )
 
     if payload.username != user.username:
         exists = db.scalar(select(User).where(User.username == payload.username))
         if exists is not None and exists.id != user.id:
-            raise HTTPException(status.HTTP_409_CONFLICT, detail="用户名已存在")
+            raise HTTPException(
+                status.HTTP_409_CONFLICT,
+                detail=_t("admin.api.errors.usernameExists"),
+            )
 
     user.username = payload.username
     user.email = payload.email
@@ -1137,12 +1203,12 @@ async def update_user(
     if payload.password:
         user.password_hash = hash_password(payload.password)
     db.add(user)
-    _commit_session(db, conflict_detail="用户名已存在")
+    _commit_session(db, conflict_detail=_t("admin.api.errors.usernameExists"))
     db.refresh(user)
 
     hx_request = request.headers.get("hx-request") == "true"
     if hx_request:
-        message = _feedback_html("用户信息已更新", tone="success")
+        message = _feedback_html(_t("admin.api.feedback.userUpdated"), tone="success")
         row_html = admin_templates.get_template("admin/partials/user_row.html").render(
             {"request": request, "item": user, "oob": True}
         )
@@ -1168,9 +1234,15 @@ def delete_user(
 
     user = db.get(User, user_id)
     if user is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="用户不存在")
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND,
+            detail=_t("admin.api.errors.userNotFound"),
+        )
     if user.id == admin.id:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="无法删除当前登录用户")
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            detail=_t("admin.api.errors.cannotDeleteSelf"),
+        )
 
     if user.is_admin:
         remaining_admins = db.scalar(
@@ -1179,14 +1251,17 @@ def delete_user(
             .where(User.is_admin.is_(True), User.id != user.id)
         )
         if not remaining_admins:
-            raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="至少保留一位管理员")
+            raise HTTPException(
+                status.HTTP_400_BAD_REQUEST,
+                detail=_t("admin.api.errors.mustKeepAdmin"),
+            )
 
     db.delete(user)
     _commit_session(db)
 
     hx_request = request.headers.get("hx-request") == "true"
     if hx_request:
-        message = _feedback_html("用户已删除", tone="warning")
+        message = _feedback_html(_t("admin.api.feedback.userDeleted"), tone="warning")
         return HTMLResponse(
             message,
             status_code=status.HTTP_200_OK,
@@ -1209,10 +1284,16 @@ async def change_own_password(
 
     user = db.get(User, current_user.id)
     if user is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="用户不存在")
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND,
+            detail=_t("admin.api.errors.userNotFound"),
+        )
 
     if not verify_password(payload.current_password, user.password_hash):
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="原密码不正确")
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            detail=_t("admin.api.errors.originalPasswordIncorrect"),
+        )
 
     user.password_hash = hash_password(payload.new_password)
     db.add(user)
@@ -1220,7 +1301,7 @@ async def change_own_password(
 
     hx_request = request.headers.get("hx-request") == "true"
     if hx_request:
-        message = _feedback_html("密码修改成功", tone="success")
+        message = _feedback_html(_t("admin.api.feedback.passwordChanged"), tone="success")
         return HTMLResponse(
             message,
             status_code=status.HTTP_200_OK,
@@ -1243,13 +1324,16 @@ def delete_subdomain(
 
     redirect = db.get(SubdomainRedirect, redirect_id)
     if redirect is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="子域跳转不存在")
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND,
+            detail=_t("admin.api.errors.subdomainNotFound"),
+        )
     _ensure_subdomain_permission(redirect, current_user)
     db.delete(redirect)
     _commit_session(db)
     hx_request = request.headers.get("hx-request") == "true"
     if hx_request:
-        message = _feedback_html("子域跳转已删除", tone="warning")
+        message = _feedback_html(_t("admin.api.feedback.subdomainDeleted"), tone="warning")
         return HTMLResponse(
             message,
             status_code=status.HTTP_200_OK,
@@ -1279,7 +1363,10 @@ async def update_subdomain(
 
     redirect = db.get(SubdomainRedirect, redirect_id)
     if redirect is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="子域跳转不存在")
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND,
+            detail=_t("admin.api.errors.subdomainNotFound"),
+        )
     _ensure_subdomain_permission(redirect, current_user)
 
     normalized_host = payload.host
@@ -1287,17 +1374,23 @@ async def update_subdomain(
         if not current_user.is_admin:
             label = extract_subdomain_label(normalized_host)
             if label:
-                _ensure_slug_length(label, field="子域前缀")
+                _ensure_slug_length(label, field=_t("admin.fields.subdomainPrefix"))
         _ensure_subdomain_not_blacklisted(db, normalized_host, current_user)
         exists = db.scalar(
             select(SubdomainRedirect).where(SubdomainRedirect.host == normalized_host)
         )
         if exists:
-            raise HTTPException(status.HTTP_409_CONFLICT, detail="子域跳转已存在")
+            raise HTTPException(
+                status.HTTP_409_CONFLICT,
+                detail=_t("admin.api.errors.subdomainExists"),
+            )
 
     matched_domain = _match_managed_domain(normalized_host, managed_domains)
     if matched_domain is None:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail="域名不在管理列表中")
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=_t("admin.api.errors.domainNotManaged"),
+        )
 
     redirect.host = normalized_host
     redirect.domain = matched_domain
@@ -1306,12 +1399,12 @@ async def update_subdomain(
     if redirect.user_id is None:
         redirect.user_id = current_user.id
     db.add(redirect)
-    _commit_session(db, conflict_detail="子域跳转已存在")
+    _commit_session(db, conflict_detail=_t("admin.api.errors.subdomainExists"))
     db.refresh(redirect)
 
     hx_request = request.headers.get("hx-request") == "true"
     if hx_request:
-        message = _feedback_html("子域跳转已更新", tone="success")
+        message = _feedback_html(_t("admin.api.feedback.subdomainUpdated"), tone="success")
         context, _ = _admin_context_with_settings(request, db, current_user)
         context.update(
             {

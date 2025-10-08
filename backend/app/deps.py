@@ -1,7 +1,7 @@
 """Shared dependencies for FastAPI routes."""
 from __future__ import annotations
 
-from typing import Generator, Literal
+from typing import Any, Generator, Literal
 from urllib.parse import quote
 
 from fastapi import Depends, HTTPException, Request, status
@@ -9,11 +9,16 @@ from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from .i18n import DEFAULT_LOCALE, translate
 from .models import SessionLocal, User
 from .security import needs_rehash, rehash_password, verify_password
 from .session import get_session, set_session
 
 security = HTTPBasic(auto_error=False)
+
+
+def _t(key: str, **params: Any) -> str:
+    return translate(key, locale=DEFAULT_LOCALE, **params)
 
 
 def get_db() -> Generator[Session, None, None]:
@@ -81,7 +86,7 @@ def require_authenticated_user(
             return basic_user
         raise HTTPException(
             status.HTTP_401_UNAUTHORIZED,
-            detail="认证失败",
+            detail=_t("admin.errors.authFailed"),
             headers={"WWW-Authenticate": "Basic"},
         )
 
@@ -94,13 +99,13 @@ def require_authenticated_user(
             redirect = f"/admin/login?next={quote(target, safe='')}"
         raise HTTPException(
             status.HTTP_303_SEE_OTHER,
-            detail="未登录",
+            detail=_t("admin.errors.notAuthenticated"),
             headers={"Location": redirect},
         )
 
     raise HTTPException(
         status.HTTP_401_UNAUTHORIZED,
-        detail="未登录",
+        detail=_t("admin.errors.notAuthenticated"),
         headers={"WWW-Authenticate": "Basic"},
     )
 
@@ -109,7 +114,10 @@ def require_admin_user(current_user: User = Depends(require_authenticated_user))
     """Ensure the current user has administrator privileges."""
 
     if not current_user.is_admin:
-        raise HTTPException(status.HTTP_403_FORBIDDEN, detail="需要管理员权限")
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN,
+            detail=_t("admin.errors.adminRequired"),
+        )
     return current_user
 
 

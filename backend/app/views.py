@@ -35,12 +35,15 @@ from .settings_service import (
     get_site_settings,
 )
 from .subdomain_service import format_blacklist_labels
+from .i18n import DEFAULT_LOCALE, jinja_namespace, jinja_translate, translate
 
 SUBDOMAIN_CODE_OPTIONS = [302, 301]
 
 TEMPLATE_DIR = Path(__file__).resolve().parent / "templates"
 
 templates = Jinja2Templates(directory=str(TEMPLATE_DIR))
+templates.env.globals["_"] = jinja_translate
+templates.env.globals["get_translations"] = jinja_namespace
 
 router = APIRouter()
 
@@ -143,6 +146,7 @@ def _base_context(
         "settings_feedback_html": None,
         "show_logout_button": True,
         "current_user": user,
+        "locale": DEFAULT_LOCALE,
     }
 
 
@@ -158,14 +162,20 @@ def _ensure_link_access(short_link: ShortLink, user: User) -> None:
     if user.is_admin:
         return
     if short_link.user_id != user.id:
-        raise HTTPException(status.HTTP_403_FORBIDDEN, detail="无权查看该短链")
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN,
+            detail=translate("admin.errors.shortLinkForbidden"),
+        )
 
 
 def _ensure_subdomain_access(redirect: SubdomainRedirect, user: User) -> None:
     if user.is_admin:
         return
     if redirect.user_id != user.id:
-        raise HTTPException(status.HTTP_403_FORBIDDEN, detail="无权查看该子域")
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN,
+            detail=translate("admin.errors.subdomainForbidden"),
+        )
 
 
 @router.get("/admin", response_class=HTMLResponse)
@@ -211,7 +221,7 @@ def admin_dashboard(
         if request.query_params.get("saved"):
             context["settings_feedback_html"] = (
                 "<div class=\"theme-feedback__message theme-feedback__message--success\">"
-                "站点设置已更新"
+                f"{translate('admin.feedback.settingsSaved', locale=context.get('locale'))}"
                 "</div>"
             )
     return templates.TemplateResponse("admin/index.html", context)
@@ -267,7 +277,7 @@ async def admin_login_submit(
 
     error: str | None = None
     if not username or not password:
-        error = "账号或密码不能为空"
+        error = translate("admin.login.errorRequired")
     else:
         ok, reason, user = validate_credentials(username, password, db)
         if ok and user is not None:
@@ -276,11 +286,11 @@ async def admin_login_submit(
             establish_session(response, request, user)
             return response
         if reason == "username":
-            error = "账号错误"
+            error = translate("admin.login.errorUsername")
         elif reason == "password":
-            error = "密码错误"
+            error = translate("admin.login.errorPassword")
         else:
-            error = "登录失败"
+            error = translate("admin.login.errorGeneric")
 
     context, _ = _context_with_settings(request, db)
     context.update(
@@ -347,7 +357,10 @@ def short_link_row(
 
     short_link = db.get(ShortLink, link_id)
     if short_link is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="短链接不存在")
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND,
+            detail=translate("admin.errors.shortLinkMissing"),
+        )
     _ensure_link_access(short_link, current_user)
 
     context, _ = _context_with_settings(request, db, current_user)
@@ -369,7 +382,10 @@ def short_link_edit_row(
 
     short_link = db.get(ShortLink, link_id)
     if short_link is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="短链接不存在")
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND,
+            detail=translate("admin.errors.shortLinkMissing"),
+        )
     _ensure_link_access(short_link, current_user)
 
     context, _ = _context_with_settings(request, db, current_user)
@@ -444,7 +460,10 @@ def subdomain_row(
 
     redirect = db.get(SubdomainRedirect, redirect_id)
     if redirect is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="子域跳转不存在")
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND,
+            detail=translate("admin.errors.subdomainMissing"),
+        )
     _ensure_subdomain_access(redirect, current_user)
 
     context, _ = _context_with_settings(request, db, current_user)
@@ -466,7 +485,10 @@ def subdomain_edit_row(
 
     redirect = db.get(SubdomainRedirect, redirect_id)
     if redirect is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="子域跳转不存在")
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND,
+            detail=translate("admin.errors.subdomainMissing"),
+        )
     _ensure_subdomain_access(redirect, current_user)
 
     context, _ = _context_with_settings(request, db, current_user)
@@ -528,7 +550,10 @@ def user_row(
 
     user = db.get(User, user_id)
     if user is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="用户不存在")
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND,
+            detail=translate("admin.errors.userMissing"),
+        )
 
     context, _ = _context_with_settings(request, db, admin)
     context.update({"item": user})
@@ -549,7 +574,10 @@ def user_edit_row(
 
     user = db.get(User, user_id)
     if user is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="用户不存在")
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND,
+            detail=translate("admin.errors.userMissing"),
+        )
 
     context, _ = _context_with_settings(request, db, admin)
     context.update({"item": user})

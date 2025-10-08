@@ -9,7 +9,7 @@
         type="button"
         class="theme-copy"
         data-copy-value="https://{{ item.host }}"
-        aria-label="复制子域 https://{{ item.host }}"
+        aria-label="{{ _('admin.aria.copySubdomain', host=item.host) }}"
         title="https://{{ item.host }}"
       >
         <span class="theme-copy__text">{{ item.host }}</span>
@@ -19,7 +19,9 @@
             <path d="M5 15V5a2 2 0 0 1 2-2h10"></path>
           </svg>
         </span>
-        <span class="theme-copy__feedback" aria-hidden="true">已复制</span>
+        <span class="theme-copy__feedback" aria-hidden="true"
+          >{{ _('admin.feedback.copied') }}</span
+        >
       </button>
     </div>
   </td>
@@ -43,7 +45,7 @@
         hx-target="closest tr"
         hx-swap="outerHTML"
       >
-        编辑
+        {{ _('admin.buttons.edit') }}
       </button>
       <button
         type="button"
@@ -51,30 +53,35 @@
         hx-delete="/api/subdomains/{{ item.id }}"
         hx-target="#subdomain-feedback"
         hx-swap="innerHTML"
-        hx-confirm="确认删除该子域？"
+        hx-confirm="{{ _('admin.confirmations.deleteSubdomain') }}"
         data-success-event="refresh-subdomains"
       >
-        删除
+        {{ _('admin.buttons.delete') }}
       </button>
     </div>
     <details class="theme-table__details">
-      <summary class="theme-table__details-toggle" aria-label="展开操作菜单">
+      <summary
+        class="theme-table__details-toggle"
+        aria-label="{{ _('admin.aria.expandActions') }}"
+      >
         <svg viewBox="0 0 24 24" aria-hidden="true">
           <circle cx="5" cy="12" r="1.8"></circle>
           <circle cx="12" cy="12" r="1.8"></circle>
           <circle cx="19" cy="12" r="1.8"></circle>
         </svg>
-        <span class="sr-only">展开操作菜单</span>
+        <span class="sr-only">{{ _('admin.aria.expandActions') }}</span>
       </summary>
       <div class="theme-table__details-panel">
         <div class="theme-table__details-summary">
-          <span class="theme-table__details-title">子域</span>
+          <span class="theme-table__details-title"
+            >{{ _('admin.tables.details.subdomain') }}</span
+          >
           <div class="theme-table__details-primary">
             <button
               type="button"
               class="theme-copy"
               data-copy-value="https://{{ item.host }}"
-              aria-label="复制子域 https://{{ item.host }}"
+              aria-label="{{ _('admin.aria.copySubdomain', host=item.host) }}"
             >
               <span class="theme-copy__text">{{ item.host }}</span>
               <span class="theme-copy__icon" aria-hidden="true">
@@ -83,16 +90,20 @@
                   <path d="M5 15V5a2 2 0 0 1 2-2h10"></path>
                 </svg>
               </span>
-              <span class="theme-copy__feedback" aria-hidden="true">已复制</span>
+              <span class="theme-copy__feedback" aria-hidden="true"
+                >{{ _('admin.feedback.copied') }}</span
+              >
             </button>
           </div>
           {% if show_user_column %}
-          <span class="theme-table__details-meta">用户：{{ item.owner_username or '—' }}</span>
+          <span class="theme-table__details-meta">
+            {{ _('admin.tables.meta.user', username=item.owner_username or '—') }}
+          </span>
           {% endif %}
         </div>
         <dl class="theme-table__details-list">
           <div class="theme-table__details-item">
-            <dt>目标地址</dt>
+            <dt>{{ _('admin.tables.details.targetUrl') }}</dt>
             <dd>
               <a
                 href="{{ item.target_url }}"
@@ -105,22 +116,22 @@
             </dd>
           </div>
           <div class="theme-table__details-item">
-            <dt>状态码</dt>
+            <dt>{{ _('admin.tables.details.statusCode') }}</dt>
             <dd>{{ item.code }}</dd>
           </div>
           <div class="theme-table__details-item">
-            <dt>访问次数</dt>
+            <dt>{{ _('admin.tables.details.visits') }}</dt>
             <dd>{{ item.hits }}</dd>
           </div>
           <div class="theme-table__details-item">
-            <dt>创建时间</dt>
+            <dt>{{ _('admin.tables.details.createdAt') }}</dt>
             <dd>
               {{ item.created_at.strftime('%Y-%m-%d %H:%M') if item.created_at else '-' }}
             </dd>
           </div>
           {% if show_user_column %}
           <div class="theme-table__details-item">
-            <dt>用户</dt>
+            <dt>{{ _('admin.tables.details.user') }}</dt>
             <dd>{{ item.owner_username or '—' }}</dd>
           </div>
           {% endif %}
@@ -133,7 +144,7 @@
             hx-target="closest tr"
             hx-swap="outerHTML"
           >
-            编辑
+            {{ _('admin.buttons.edit') }}
           </button>
           <button
             type="button"
@@ -141,10 +152,10 @@
             hx-delete="/api/subdomains/{{ item.id }}"
             hx-target="#subdomain-feedback"
             hx-swap="innerHTML"
-            hx-confirm="确认删除该子域？"
+            hx-confirm="{{ _('admin.confirmations.deleteSubdomain') }}"
             data-success-event="refresh-subdomains"
           >
-            删除
+            {{ _('admin.buttons.delete') }}
           </button>
         </div>
       </div>

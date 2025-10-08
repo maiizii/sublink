@@ -18,6 +18,13 @@
       buildUrl: (id) => `/admin/users/${id}/row`,
     },
   ];
+  const DEFAULT_I18N = {
+    requestError: "Request failed, please try again later",
+    themeToggleLight: "Switch to light theme",
+    themeToggleDark: "Switch to dark theme",
+    fallbackNotices: [],
+  };
+  const I18N = Object.assign({}, DEFAULT_I18N, window.SUBLINK_ADMIN_I18N || {});
   let storedThemeValue = null;
   let detailsOutsideHandlerBound = false;
   let detailsPanelId = 0;
@@ -315,7 +322,7 @@
       }
     } catch (error) {
       if (target) {
-        target.textContent = "请求失败，请稍后再试";
+        target.textContent = I18N.requestError;
       }
       console.error("Failed to submit form", error);
     } finally {
@@ -570,7 +577,8 @@
 
     const sanitizedActive = sanitizeTheme(activeTheme);
     const nextTheme = sanitizedActive === "nebula" ? "aurora" : "nebula";
-    const labelText = nextTheme === "nebula" ? "切换到暗色主题" : "切换到亮色主题";
+    const labelText =
+      nextTheme === "nebula" ? I18N.themeToggleDark : I18N.themeToggleLight;
 
     toggle.setAttribute("data-next-theme", nextTheme);
     toggle.setAttribute("aria-label", labelText);
@@ -1175,10 +1183,9 @@
       typeof console.warn === "function"
     ) {
       const originalWarn = console.warn.bind(console);
-      const fallbackNotices = [
-        "htmx 未加载，使用回退逻辑处理管理后台交互。",
-        "htmx 未加载，使用回退逻辑处理短链子域管理后台交互。",
-      ];
+      const fallbackNotices = Array.isArray(I18N.fallbackNotices)
+        ? I18N.fallbackNotices
+        : [];
       console.warn = (...args) => {
         const combined = args
           .filter((value) => typeof value === "string")
@@ -1366,13 +1373,13 @@
         if (response.ok) {
           handleResponseTriggers(response);
           if (!isGet) {
-            // 删除操作会触发刷新事件
+            // Deletions trigger refresh events
             handleSuccess(trigger);
           }
         }
       } catch (error) {
         if (target) {
-          target.textContent = "请求失败，请稍后再试";
+          target.textContent = I18N.requestError;
         }
         console.error("Failed to process request", error);
       }

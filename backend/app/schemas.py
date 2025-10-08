@@ -2,9 +2,11 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Any
 
 from pydantic import BaseModel, Field, ValidationInfo, field_validator
 
+from .i18n import DEFAULT_LOCALE, translate
 from .models import DEFAULT_ICON_URL, DEFAULT_LOGO_URL
 from .settings_service import (
     normalize_asset_url,
@@ -16,19 +18,28 @@ from .settings_service import (
 from .validators import normalize_slug
 
 
+def _t(key: str, **params: Any) -> str:
+    return translate(key, locale=DEFAULT_LOCALE, **params)
+
+
 class SubdomainRedirectBase(BaseModel):
-    host: str = Field(..., description="例如 api.yet.la")
-    target_url: str = Field(..., description="完整跳转地址")
-    code: int = Field(default=302, description="HTTP 状态码")
+    host: str = Field(..., description=_t("admin.schemas.descriptions.subdomainHost"))
+    target_url: str = Field(..., description=_t("admin.schemas.descriptions.targetUrl"))
+    code: int = Field(default=302, description=_t("admin.schemas.descriptions.statusCode"))
 
     @field_validator("host")
     @classmethod
     def _normalize_host(cls, value: str) -> str:
         normalized = value.strip().lower()
         if not normalized:
-            raise ValueError("子域不能为空")
+            raise ValueError(
+                _t(
+                    "admin.validation.fieldRequiredWithName",
+                    field=_t("admin.fields.subdomain"),
+                )
+            )
         parts = normalized.split(".", 1)
-        prefix = normalize_slug(parts[0], field="子域")
+        prefix = normalize_slug(parts[0], field=_t("admin.fields.subdomainPrefix"))
         if len(parts) == 1:
             return prefix
         suffix = parts[1].strip()
@@ -38,17 +49,19 @@ class SubdomainRedirectBase(BaseModel):
     @classmethod
     def _validate_code(cls, value: int) -> int:
         if value not in {301, 302}:
-            raise ValueError("仅支持 301 或 302 重定向")
+            raise ValueError(_t("admin.validation.redirectStatusCode"))
         return value
 
 
 class SubdomainRedirect(SubdomainRedirectBase):
-    id: int = Field(..., description="数据库主键")
-    domain: str = Field(..., description="所属基础域名")
-    created_at: datetime = Field(..., description="创建时间")
-    hits: int = Field(default=0, description="累计访问次数")
-    user_id: int | None = Field(default=None, description="所属用户 ID")
-    owner_username: str | None = Field(default=None, description="所属用户名")
+    id: int = Field(..., description=_t("admin.schemas.descriptions.databaseId"))
+    domain: str = Field(..., description=_t("admin.schemas.descriptions.subdomainDomain"))
+    created_at: datetime = Field(..., description=_t("admin.schemas.descriptions.createdAt"))
+    hits: int = Field(default=0, description=_t("admin.schemas.descriptions.visitCount"))
+    user_id: int | None = Field(default=None, description=_t("admin.schemas.descriptions.userId"))
+    owner_username: str | None = Field(
+        default=None, description=_t("admin.schemas.descriptions.ownerUsername")
+    )
 
     model_config = {"from_attributes": True}
 
@@ -62,17 +75,19 @@ class SubdomainRedirectUpdate(SubdomainRedirectBase):
 
 
 class SubdomainBlacklistBase(BaseModel):
-    label: str = Field(..., description="子域前缀")
+    label: str = Field(
+        ..., description=_t("admin.schemas.descriptions.subdomainLabel")
+    )
 
     @field_validator("label")
     @classmethod
     def _normalize_label(cls, value: str) -> str:
-        return normalize_slug(value, field="子域")
+        return normalize_slug(value, field=_t("admin.fields.subdomainPrefix"))
 
 
 class SubdomainBlacklist(SubdomainBlacklistBase):
-    id: int = Field(..., description="数据库主键")
-    created_at: datetime = Field(..., description="创建时间")
+    id: int = Field(..., description=_t("admin.schemas.descriptions.databaseId"))
+    created_at: datetime = Field(..., description=_t("admin.schemas.descriptions.createdAt"))
 
     model_config = {"from_attributes": True}
 
@@ -82,7 +97,10 @@ class SubdomainBlacklistCreate(SubdomainBlacklistBase):
 
 
 class SubdomainBlacklistBulkUpdate(BaseModel):
-    labels: str = Field("", description="以空格分隔的子域前缀列表")
+    labels: str = Field(
+        "",
+        description=_t("admin.schemas.descriptions.blacklistLabels"),
+    )
 
     @field_validator("labels")
     @classmethod
@@ -91,12 +109,19 @@ class SubdomainBlacklistBulkUpdate(BaseModel):
 
 
 class ShortLinkBase(BaseModel):
-    target_url: str = Field(..., description="目标地址")
+    target_url: str = Field(
+        ..., description=_t("admin.schemas.descriptions.targetUrl")
+    )
 
 
 class ShortLinkCreate(ShortLinkBase):
-    code: str | None = Field(default=None, description="短链编码，可为空自动生成")
-    domain: str | None = Field(default=None, description="短链所属域名，可留空使用主域名")
+    code: str | None = Field(
+        default=None, description=_t("admin.schemas.descriptions.shortLinkCodeOptional")
+    )
+    domain: str | None = Field(
+        default=None,
+        description=_t("admin.schemas.descriptions.shortLinkDomainOptional"),
+    )
 
     @field_validator("code")
     @classmethod
@@ -106,7 +131,7 @@ class ShortLinkCreate(ShortLinkBase):
         stripped = value.strip()
         if not stripped:
             return None
-        return normalize_slug(stripped, field="短链编码")
+        return normalize_slug(stripped, field=_t("admin.fields.shortLinkCode"))
 
     @field_validator("domain")
     @classmethod
@@ -120,28 +145,38 @@ class ShortLinkCreate(ShortLinkBase):
 
 
 class ShortLink(ShortLinkBase):
-    id: int = Field(..., description="数据库主键")
-    code: str = Field(..., description="短链编码")
-    domain: str = Field(..., description="所属域名")
-    hits: int = Field(default=0, description="访问次数")
-    created_at: datetime = Field(..., description="创建时间")
-    user_id: int | None = Field(default=None, description="所属用户 ID")
-    owner_username: str | None = Field(default=None, description="所属用户名")
+    id: int = Field(..., description=_t("admin.schemas.descriptions.databaseId"))
+    code: str = Field(..., description=_t("admin.schemas.descriptions.shortLinkCode"))
+    domain: str = Field(..., description=_t("admin.schemas.descriptions.domain"))
+    hits: int = Field(default=0, description=_t("admin.schemas.descriptions.visits"))
+    created_at: datetime = Field(..., description=_t("admin.schemas.descriptions.createdAt"))
+    user_id: int | None = Field(default=None, description=_t("admin.schemas.descriptions.userId"))
+    owner_username: str | None = Field(
+        default=None, description=_t("admin.schemas.descriptions.ownerUsername")
+    )
 
     model_config = {"from_attributes": True}
 
 
 class ShortLinkUpdate(ShortLinkBase):
-    code: str = Field(..., description="短链编码")
-    domain: str | None = Field(default=None, description="短链所属域名，可留空保留原值")
+    code: str = Field(..., description=_t("admin.schemas.descriptions.shortLinkCode"))
+    domain: str | None = Field(
+        default=None,
+        description=_t("admin.schemas.descriptions.shortLinkDomainKeep"),
+    )
 
     @field_validator("code")
     @classmethod
     def _normalize_code(cls, value: str) -> str:
         stripped = value.strip()
         if not stripped:
-            raise ValueError("短链编码不能为空")
-        return normalize_slug(stripped, field="短链编码")
+            raise ValueError(
+                _t(
+                    "admin.validation.fieldRequiredWithName",
+                    field=_t("admin.fields.shortLinkCode"),
+                )
+            )
+        return normalize_slug(stripped, field=_t("admin.fields.shortLinkCode"))
 
     @field_validator("domain")
     @classmethod
@@ -155,38 +190,51 @@ class ShortLinkUpdate(ShortLinkBase):
 
 
 class UserBase(BaseModel):
-    username: str = Field(..., description="用户名")
-    email: str = Field(..., description="邮箱地址")
+    username: str = Field(..., description=_t("admin.schemas.descriptions.username"))
+    email: str = Field(..., description=_t("admin.schemas.descriptions.email"))
 
     @field_validator("username")
     @classmethod
     def _normalize_username(cls, value: str) -> str:
-        return normalize_slug(value, field="用户名")
+        return normalize_slug(value, field=_t("admin.fields.username"))
 
     @field_validator("email")
     @classmethod
     def _normalize_email(cls, value: str) -> str:
         normalized = value.strip()
         if not normalized:
-            raise ValueError("邮箱不能为空")
+            raise ValueError(
+                _t(
+                    "admin.validation.fieldRequiredWithName",
+                    field=_t("admin.fields.email"),
+                )
+            )
         return normalized
 
 
 class UserCreate(UserBase):
-    password: str = Field(..., description="登录密码")
-    is_admin: bool = Field(default=False, description="是否管理员")
+    password: str = Field(..., description=_t("admin.schemas.descriptions.password"))
+    is_admin: bool = Field(default=False, description=_t("admin.schemas.descriptions.isAdmin"))
 
     @field_validator("password")
     @classmethod
     def _validate_password(cls, value: str) -> str:
         if len(value) < 6:
-            raise ValueError("密码长度至少为 6 位")
+            raise ValueError(
+                _t(
+                    "admin.validation.passwordMinLength",
+                    field=_t("admin.fields.password"),
+                    min=6,
+                )
+            )
         return value
 
 
 class UserUpdate(UserBase):
-    is_admin: bool = Field(default=False, description="是否管理员")
-    password: str | None = Field(default=None, description="新密码，可选")
+    is_admin: bool = Field(default=False, description=_t("admin.schemas.descriptions.isAdmin"))
+    password: str | None = Field(
+        default=None, description=_t("admin.schemas.descriptions.passwordOptional")
+    )
 
     @field_validator("password")
     @classmethod
@@ -194,7 +242,13 @@ class UserUpdate(UserBase):
         if value is None:
             return None
         if len(value) < 6:
-            raise ValueError("密码长度至少为 6 位")
+            raise ValueError(
+                _t(
+                    "admin.validation.passwordMinLength",
+                    field=_t("admin.fields.newPassword"),
+                    min=6,
+                )
+            )
         return value
 
 
@@ -209,15 +263,27 @@ class User(BaseModel):
 
 
 class PasswordChange(BaseModel):
-    current_password: str = Field(..., description="原密码")
-    new_password: str = Field(..., description="新密码")
-    confirm_password: str = Field(..., description="确认新密码")
+    current_password: str = Field(
+        ..., description=_t("admin.schemas.descriptions.passwordCurrent")
+    )
+    new_password: str = Field(
+        ..., description=_t("admin.schemas.descriptions.passwordNew")
+    )
+    confirm_password: str = Field(
+        ..., description=_t("admin.schemas.descriptions.passwordConfirm")
+    )
 
     @field_validator("new_password")
     @classmethod
     def _validate_new_password(cls, value: str) -> str:
         if len(value) < 6:
-            raise ValueError("密码长度至少为 6 位")
+            raise ValueError(
+                _t(
+                    "admin.validation.passwordMinLength",
+                    field=_t("admin.fields.newPassword"),
+                    min=6,
+                )
+            )
         return value
 
     @field_validator("confirm_password")
@@ -225,16 +291,25 @@ class PasswordChange(BaseModel):
     def _validate_confirm(cls, value: str, info: ValidationInfo) -> str:
         new_password = info.data.get("new_password") if info.data else None
         if new_password is not None and value != new_password:
-            raise ValueError("两次输入的密码不一致")
+            raise ValueError(_t("admin.validation.passwordMismatch"))
         return value
 
 
 class SiteSettingsBase(BaseModel):
-    managed_domains: str = Field(..., description="管理域名列表，空格分隔，首个为主域名")
-    short_code_length: int = Field(..., ge=3, le=64, description="短链默认长度")
-    short_link_path: str = Field(..., description="短链路径前缀，例如 / 或 /r/")
-    logo_url: str = Field(..., description="LOGO 图片地址")
-    icon_url: str = Field(..., description="网站 ICON 图片地址")
+    managed_domains: str = Field(
+        ..., description=_t("admin.schemas.descriptions.managedDomains")
+    )
+    short_code_length: int = Field(
+        ...,
+        ge=3,
+        le=64,
+        description=_t("admin.schemas.descriptions.shortCodeLength"),
+    )
+    short_link_path: str = Field(
+        ..., description=_t("admin.schemas.descriptions.shortLinkPath")
+    )
+    logo_url: str = Field(..., description=_t("admin.schemas.descriptions.logoUrl"))
+    icon_url: str = Field(..., description=_t("admin.schemas.descriptions.iconUrl"))
 
     @field_validator("managed_domains")
     @classmethod
@@ -264,8 +339,10 @@ class SiteSettingsBase(BaseModel):
 
 
 class SiteSettings(SiteSettingsBase):
-    site_domain: str = Field(..., description="主域名")
-    updated_at: datetime | None = Field(default=None, description="最近更新时间")
+    site_domain: str = Field(..., description=_t("admin.schemas.descriptions.siteDomain"))
+    updated_at: datetime | None = Field(
+        default=None, description=_t("admin.schemas.descriptions.updatedAt")
+    )
 
     @field_validator("site_domain")
     @classmethod
