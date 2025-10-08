@@ -230,16 +230,46 @@ def ensure_domain_columns() -> None:
                 ),
                 {"default_domain": DEFAULT_SITE_DOMAIN},
             )
-    short_link_indexes = inspector.get_indexes("short_links")
-    for index in short_link_indexes:
+
+    dialect_name = engine.dialect.name
+    preparer = engine.dialect.identifier_preparer
+    table_identifier = preparer.quote("short_links")
+
+    unique_names: set[str] = set()
+    for constraint in inspector.get_unique_constraints("short_links"):
+        columns = constraint.get("column_names", [])
+        if columns == ["code"]:
+            name = constraint.get("name")
+            if name:
+                unique_names.add(name)
+    for index in inspector.get_indexes("short_links"):
         columns = index.get("column_names", [])
         if index.get("unique") and columns == ["code"]:
-            index_name = index.get("name")
-            if index_name:
-                with engine.begin() as connection:
-                    connection.execute(
-                        text(f'DROP INDEX IF EXISTS "{index_name}"')
-                    )
+            name = index.get("name")
+            if name:
+                unique_names.add(name)
+
+    for name in unique_names:
+        if name.startswith("sqlite_autoindex"):
+            # SQLite 为 UNIQUE 约束生成的自动索引无法显式删除。
+            continue
+        quoted_name = preparer.quote(name)
+        drop_statement: str | None
+        if dialect_name == "postgresql":
+            drop_statement = (
+                f"ALTER TABLE {table_identifier} DROP CONSTRAINT IF EXISTS {quoted_name}"
+            )
+        elif dialect_name in {"mysql", "mariadb"}:
+            drop_statement = f"ALTER TABLE {table_identifier} DROP INDEX {quoted_name}"
+        elif dialect_name == "sqlite":
+            # SQLite 仅支持删除显式命名索引，自动索引已在上方跳过。
+            drop_statement = f"DROP INDEX IF EXISTS {quoted_name}"
+        else:
+            drop_statement = f"DROP INDEX IF EXISTS {quoted_name}"
+        if drop_statement:
+            with engine.begin() as connection:
+                connection.execute(text(drop_statement))
+
     with engine.begin() as connection:
         connection.execute(
             text(
