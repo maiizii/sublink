@@ -3,7 +3,7 @@
 自托管的 yet.la 域名跳转管理平台，提供受 HTTP Basic 保护的管理后台与 API，用于维护子域名路由与短链接。Cloudflare 负责 DNS 与 TLS
 终止，Nginx 统一接受公网流量并转发到 FastAPI 后端。
 
-> 当前版本：**v1.10.6** —— 新增管理员设置页面，所有短链规则与品牌信息均持久化到数据库并可在后台界面动态调整。
+> 当前版本：**v1.10.8.2** —— 管理员可集中维护子域屏蔽名单并一次性更新保留前缀，普通账号在创建或修改跳转时会校验前缀长度与受限列表，避免占用关键域名。
 
 ## 目录
 
@@ -43,6 +43,7 @@
 - **统一反向代理**：`infra/nginx/conf.d/yetla.upstream.conf` 监听 `80/443`，负责 HTTP→HTTPS 重定向与上游代理。
 - **认证后台 + API**：`backend/app/main.py` 提供 HTMX 管理界面及 REST API，所有写操作需登录（支持 HTTP Basic 或后台表单）。
 - **多用户权限管理**：`backend/app/models.py` 中新增 `users` 表，支持区分管理员与普通用户，并在后台界面完成用户 CRUD 与密码管理。
+- **子域屏蔽名单管控**：`backend/app/subdomain_service.py` 会在启动时写入默认的保留前缀列表，并通过 `/api/subdomain-blacklist` 提供增删改查接口，管理员可自定义限制普通用户可用的子域。
 - **部署脚本**：`docker-compose*.yml` 与 `infra/nginx/docker-entrypoint.d/` 负责容器化部署与证书挂载自检。
 
 更多背景信息请参阅 [docs/NGINX_SUBDOMAIN_ROUTING.md](docs/NGINX_SUBDOMAIN_ROUTING.md)。该文档结合最新的生产配置，说明了如何使用 Nginx 通过数据库驱动的规则完成泛域名跳转。
@@ -249,11 +250,18 @@ server {
 - 认证：支持登录页表单或 HTTP Basic，两者都会将身份信息写入服务器端会话；默认凭据为 `admin/admin`（可通过环境变量覆盖或在后台修改）。
 - 功能：通过 HTMX 调用 `/api/links`、`/api/subdomains` 与 `/api/users` 完成 CRUD，并提供「修改密码」「设置」入口；界面组件在移动端下自动折叠为单列视图，便于手机端运维。
 - 设置页：管理员可调整基础域名、短链默认长度、路径前缀以及站点的 Logo/Icon，所有变更即时写入数据库并影响前端展示与访问逻辑。
+- 屏蔽名单：设置页新增「管理子域屏蔽名单」卡片，可批量维护保留前缀并实时刷新表格，普通用户提交与修改子域时会自动校验。
 
 ### 访客访问
 
 - `https://yet.la/`：根据子域匹配结果返回重定向或 404 文本。
 - `https://yet.la/<code>`（或自定义路径前缀，如 `/r/<code>`）：短链接入口，命中后累积访问次数。
+
+## 子域屏蔽名单与长度限制
+
+- **预置保留前缀**：后端启动时会调用 `ensure_default_subdomain_blacklist`，将 `www`、`mail`、`api`、`admin`、`login`、`cdn` 等常见敏感前缀写入 `subdomain_blacklist` 表，确保首次部署即可阻止误用。
+- **界面与 API 管控**：管理员可在后台「设置」页直接编辑屏蔽名单文本框，或通过 `/api/subdomain-blacklist` 系列接口批量同步；保存后相关 HTMX 片段会自动刷新，列表保持最新状态。
+- **普通账号限制**：非管理员创建或修改子域时，后端会校验前缀长度需在 3-20 个字符之间，并拒绝使用屏蔽名单中的任何前缀；管理员在必要时可绕过限制并协助调整目标域名。
 
 ## API 说明与示例 curl
 
@@ -271,6 +279,10 @@ server {
 | POST | `/api/subdomains` | 新增子域跳转（`host` 为完整域名） | 需要登录 | 201 / 409 |
 | PUT | `/api/subdomains/{id}` | 更新子域跳转（含 Host/URL/状态码） | 需要登录 | 200 / 404 / 409 |
 | DELETE | `/api/subdomains/{id}` | 删除子域跳转 | 需要登录 | 204 / 404 |
+| GET | `/api/subdomain-blacklist` | 查看子域屏蔽名单 | 需要管理员权限 | 200 |
+| POST | `/api/subdomain-blacklist` | 新增单个屏蔽前缀 | 需要管理员权限 | 201 / 409 |
+| PUT | `/api/subdomain-blacklist` | 批量替换屏蔽名单（空格分隔） | 需要管理员权限 | 200 / 422 |
+| DELETE | `/api/subdomain-blacklist/{id}` | 删除屏蔽名单条目 | 需要管理员权限 | 204 / 404 |
 | GET | `/api/users` | 列出平台用户（管理员限定） | 需要管理员权限 | 200 |
 | POST | `/api/users` | 创建用户（支持设置管理员角色） | 需要管理员权限 | 201 / 409 |
 | PUT | `/api/users/{id}` | 更新用户资料与密码 | 需要管理员权限 | 200 / 400 / 404 / 409 |
@@ -295,6 +307,12 @@ curl -sk -u admin:changeme \
   -H "Content-Type: application/x-www-form-urlencoded" \
   --data "host=foo.yet.la&target_url=https://example.com&code=301" \
   https://yet.la/api/subdomains
+
+# 批量替换子域屏蔽名单
+curl -sk -u admin:changeme \
+  -H "Content-Type: application/json" \
+  -d '{"labels":"www api admin marketing"}' \
+  https://yet.la/api/subdomain-blacklist
 
 # multipart/form-data
 curl -sk -u admin:changeme \
