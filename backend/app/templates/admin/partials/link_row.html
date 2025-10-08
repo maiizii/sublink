@@ -1,3 +1,4 @@
+{% set metadata = short_link_metadata(item.domain) %}
 <tr
   id="short-link-row-{{ item.id }}"
   class="theme-table__row"
@@ -8,11 +9,11 @@
       <button
         type="button"
         class="theme-copy"
-        data-copy-value="{{ short_link_prefix }}{{ item.code }}"
-        aria-label="复制短链 {{ short_link_prefix }}{{ item.code }}"
-        title="{{ short_link_prefix }}{{ item.code }}"
+        data-copy-value="{{ metadata.prefix }}{{ item.code }}"
+        aria-label="复制短链 {{ metadata.prefix }}{{ item.code }}"
+        title="{{ metadata.prefix }}{{ item.code }}"
       >
-        <span class="theme-copy__text">{{ short_link_display_prefix }}{{ item.code }}</span>
+        <span class="theme-copy__text">{{ metadata.display_prefix }}{{ item.code }}</span>
         <span class="theme-copy__icon" aria-hidden="true">
           <svg viewBox="0 0 24 24">
             <rect x="9" y="9" width="12" height="12" rx="2"></rect>
@@ -74,10 +75,10 @@
             <button
               type="button"
               class="theme-copy"
-              data-copy-value="{{ short_link_prefix }}{{ item.code }}"
-              aria-label="复制短链 {{ short_link_prefix }}{{ item.code }}"
+              data-copy-value="{{ metadata.prefix }}{{ item.code }}"
+              aria-label="复制短链 {{ metadata.prefix }}{{ item.code }}"
             >
-              <span class="theme-copy__text">{{ short_link_display_prefix }}{{ item.code }}</span>
+              <span class="theme-copy__text">{{ metadata.display_prefix }}{{ item.code }}</span>
               <span class="theme-copy__icon" aria-hidden="true">
                 <svg viewBox="0 0 24 24">
                   <rect x="9" y="9" width="12" height="12" rx="2"></rect>
@@ -114,6 +115,10 @@
             <dd>
               {{ item.created_at.strftime('%Y-%m-%d %H:%M') if item.created_at else '-' }}
             </dd>
+          </div>
+          <div class="theme-table__details-item">
+            <dt>域名</dt>
+            <dd>{{ metadata.domain }}</dd>
           </div>
           {% if show_user_column %}
           <div class="theme-table__details-item">

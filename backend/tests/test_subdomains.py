@@ -15,6 +15,7 @@ def test_create_subdomain(client: "SimpleClient") -> None:
     assert payload["target_url"] == "https://example.com/docs"
     assert payload["code"] == 301
     assert payload["hits"] == 0
+    assert payload["domain"] == "test"
 
 
 def test_create_subdomain_conflict(client: "SimpleClient") -> None:
@@ -27,6 +28,61 @@ def test_create_subdomain_conflict(client: "SimpleClient") -> None:
     conflict = client.post(
         "/api/subdomains",
         json={"host": "api.test", "target_url": "https://example.org/api"},
+        auth=ADMIN_AUTH,
+    )
+    assert conflict.status_code == 409
+    assert conflict.json() == {"error": "子域跳转已存在"}
+
+
+def test_create_subdomain_allows_duplicate_prefix_on_other_domain(
+    client: "SimpleClient",
+) -> None:
+    update = client.put(
+        "/api/settings",
+        data={
+            "site_domain": "yet.la go2.you",
+            "short_code_length": "6",
+            "short_link_path": "/",
+            "logo_url": "https://img.example.com/logo.png",
+            "icon_url": "https://img.example.com/icon.png",
+        },
+        auth=ADMIN_AUTH,
+    )
+    assert update.status_code == 200
+
+    first = client.post(
+        "/api/subdomains",
+        json={
+            "host": "promo",
+            "target_url": "https://example.com/promo-a",
+            "domain": "yet.la",
+        },
+        auth=ADMIN_AUTH,
+    )
+    assert first.status_code == 201
+    assert first.json()["host"] == "promo.yet.la"
+
+    second = client.post(
+        "/api/subdomains",
+        json={
+            "host": "promo",
+            "target_url": "https://example.com/promo-b",
+            "domain": "go2.you",
+        },
+        auth=ADMIN_AUTH,
+    )
+    assert second.status_code == 201
+    payload = second.json()
+    assert payload["host"] == "promo.go2.you"
+    assert payload["domain"] == "go2.you"
+
+    conflict = client.post(
+        "/api/subdomains",
+        json={
+            "host": "promo",
+            "target_url": "https://example.com/promo-c",
+            "domain": "go2.you",
+        },
         auth=ADMIN_AUTH,
     )
     assert conflict.status_code == 409
@@ -68,7 +124,12 @@ def test_update_subdomain_via_htmx_form(client: "SimpleClient") -> None:
 
     response = client.put(
         f"/api/subdomains/{created['id']}",
-        data={"host": "edit.test", "target_url": "https://example.com/new", "code": "301"},
+        data={
+            "host": "edit.test",
+            "target_url": "https://example.com/new",
+            "code": "301",
+            "domain": "test",
+        },
         headers={"hx-request": "true"},
         auth=ADMIN_AUTH,
     )
@@ -82,6 +143,7 @@ def test_update_subdomain_via_htmx_form(client: "SimpleClient") -> None:
     records = listing.json()
     assert records[0]["target_url"] == "https://example.com/new"
     assert records[0]["code"] == 301
+    assert records[0]["domain"] == "test"
 
 
 def test_subdomain_blacklist_blocks_creation(client: "SimpleClient") -> None:
@@ -115,6 +177,7 @@ def test_subdomain_blacklist_blocks_creation(client: "SimpleClient") -> None:
         auth=ADMIN_AUTH,
     )
     assert allowed.status_code == 201
+    assert allowed.json()["domain"] == "test"
 
     listing = client.get("/api/subdomain-blacklist", auth=ADMIN_AUTH)
     assert listing.status_code == 200
@@ -148,6 +211,7 @@ def test_subdomain_blacklist_blocks_updates(client: "SimpleClient") -> None:
         json={"host": "safe.test", "target_url": "https://example.com/safe"},
         auth=owner_auth,
     ).json()
+    assert redirect["domain"] == "test"
 
     client.post(
         "/api/subdomain-blacklist",
@@ -170,6 +234,7 @@ def test_subdomain_blacklist_blocks_updates(client: "SimpleClient") -> None:
     )
     assert admin_update.status_code == 200
     assert admin_update.json()["host"] == "blocked.test"
+    assert admin_update.json()["domain"] == "test"
 
     blacklist_listing = client.get("/api/subdomain-blacklist", auth=ADMIN_AUTH).json()
     blocked_entry = next(item for item in blacklist_listing if item["label"] == "blocked")

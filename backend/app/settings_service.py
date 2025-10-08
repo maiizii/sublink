@@ -54,6 +54,11 @@ def split_site_domain_values(value: str | None) -> list[str]:
     return _normalize_site_domain_values(value)
 
 
+def normalize_single_domain(value: str | None) -> str:
+    values = _normalize_site_domain_values(value)
+    return values[0] if values else DEFAULT_SITE_DOMAIN
+
+
 def get_primary_site_domain(value: str | None) -> str:
     domains = split_site_domain_values(value)
     return domains[0] if domains else DEFAULT_SITE_DOMAIN
@@ -187,13 +192,65 @@ def build_short_link_prefix(settings: SiteSettings) -> str:
     """Compose the short link prefix shown in the UI."""
 
     domain = get_primary_site_domain(settings.site_domain).strip().strip("/")
-    base_url = f"https://{domain}".rstrip("/")
+    return build_short_link_prefix_for_domain(settings, domain)
+
+
+def build_short_link_prefix_for_domain(settings: SiteSettings, domain: str | None) -> str:
+    """Compose the short link prefix for a specific managed domain."""
+
+    normalized_domain = normalize_single_domain(domain).strip().strip("/")
+    base_domain = normalized_domain or get_primary_site_domain(settings.site_domain)
+    base_domain = base_domain.strip().strip("/")
+    if not base_domain:
+        base_domain = DEFAULT_SITE_DOMAIN
+    base_url = f"https://{base_domain}".rstrip("/")
     path = settings.short_link_path
     if not path.startswith("/"):
         path = f"/{path}"
     if path != "/" and not path.endswith("/"):
         path = f"{path}/"
     return f"{base_url}{path}"
+
+
+def build_short_link_ui_metadata(
+    settings: SiteSettings, domain: str | None
+) -> dict[str, str]:
+    """Return display metadata for a short link domain."""
+
+    normalized = normalize_single_domain(domain)
+    prefix = build_short_link_prefix_for_domain(settings, normalized)
+    display_prefix = prefix
+    for scheme in ("https://", "http://"):
+        if display_prefix.startswith(scheme):
+            display_prefix = display_prefix[len(scheme) :]
+            break
+    if display_prefix.startswith(normalized):
+        display_suffix = display_prefix[len(normalized) :]
+    else:
+        display_suffix = display_prefix
+    return {
+        "domain": normalized,
+        "prefix": prefix,
+        "display_prefix": display_prefix,
+        "display_suffix": display_suffix,
+    }
+
+
+def match_short_link_domain(host: str, settings: SiteSettings) -> str | None:
+    """Return the managed domain that matches a request host."""
+
+    normalized_host = (host or "").strip().lower()
+    if not normalized_host:
+        return None
+
+    managed = split_site_domain_values(settings.site_domain)
+    for domain in managed:
+        if normalized_host == domain:
+            return domain
+        if normalized_host == f"www.{domain}":
+            return domain
+
+    return None
 
 
 def extract_short_link(path: str, settings: SiteSettings) -> tuple[str, str] | None:

@@ -11,6 +11,7 @@ from sqlalchemy import (
     ForeignKey,
     Integer,
     String,
+    UniqueConstraint,
     create_engine,
     func,
     inspect,
@@ -115,6 +116,9 @@ class SubdomainRedirect(Base):
     host: Mapped[str] = mapped_column(String(255), unique=True, index=True)
     target_url: Mapped[str] = mapped_column(String(2048))
     code: Mapped[int] = mapped_column("code_int", Integer, default=302, nullable=False)
+    domain: Mapped[str] = mapped_column(
+        String(255), default=DEFAULT_SITE_DOMAIN, nullable=False, index=True
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
@@ -145,11 +149,17 @@ class ShortLink(Base):
     """短链接记录表。"""
 
     __tablename__ = "short_links"
+    __table_args__ = (
+        UniqueConstraint("domain", "code", name="uq_short_links_domain_code"),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    code: Mapped[str] = mapped_column(String(64), unique=True, index=True)
+    code: Mapped[str] = mapped_column(String(64), index=True)
     target_url: Mapped[str] = mapped_column(String(2048))
     hits: Mapped[int] = mapped_column("hits_int", Integer, default=0, nullable=False)
+    domain: Mapped[str] = mapped_column(
+        String(255), default=DEFAULT_SITE_DOMAIN, nullable=False, index=True
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
@@ -202,4 +212,56 @@ def ensure_user_association_columns() -> None:
                     "ALTER TABLE subdomain_redirects ADD COLUMN user_id INTEGER REFERENCES users(id)"
                 )
             )
+
+
+def ensure_domain_columns() -> None:
+    """Ensure legacy tables include the domain columns and related indexes."""
+
+    inspector = inspect(engine)
+
+    short_link_columns = {
+        column["name"] for column in inspector.get_columns("short_links")
+    }
+    if "domain" not in short_link_columns:
+        with engine.begin() as connection:
+            connection.execute(
+                text(
+                    "ALTER TABLE short_links ADD COLUMN domain VARCHAR(255) NOT NULL DEFAULT :default_domain"
+                ),
+                {"default_domain": DEFAULT_SITE_DOMAIN},
+            )
+    short_link_indexes = inspector.get_indexes("short_links")
+    for index in short_link_indexes:
+        columns = index.get("column_names", [])
+        if index.get("unique") and columns == ["code"]:
+            index_name = index.get("name")
+            if index_name:
+                with engine.begin() as connection:
+                    connection.execute(
+                        text(f'DROP INDEX IF EXISTS "{index_name}"')
+                    )
+    with engine.begin() as connection:
+        connection.execute(
+            text(
+                "CREATE UNIQUE INDEX IF NOT EXISTS uq_short_links_domain_code ON short_links(domain, code)"
+            )
+        )
+
+    subdomain_columns = {
+        column["name"] for column in inspector.get_columns("subdomain_redirects")
+    }
+    if "domain" not in subdomain_columns:
+        with engine.begin() as connection:
+            connection.execute(
+                text(
+                    "ALTER TABLE subdomain_redirects ADD COLUMN domain VARCHAR(255) NOT NULL DEFAULT :default_domain"
+                ),
+                {"default_domain": DEFAULT_SITE_DOMAIN},
+            )
+    with engine.begin() as connection:
+        connection.execute(
+            text(
+                "CREATE INDEX IF NOT EXISTS ix_subdomain_redirects_domain ON subdomain_redirects(domain)"
+            )
+        )
 

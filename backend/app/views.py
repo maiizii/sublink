@@ -29,7 +29,7 @@ from .models import (
     User,
 )
 from .settings_service import (
-    build_short_link_prefix,
+    build_short_link_ui_metadata,
     get_primary_site_domain,
     get_site_settings,
     split_site_domain_values,
@@ -87,14 +87,18 @@ def _load_users(db: Session) -> list[User]:
     )
 
 
-def _generate_short_link_suggestion(db: Session, length: int) -> str:
+def _generate_short_link_suggestion(db: Session, length: int, domain: str) -> str:
     """Generate a random short link code suggestion that does not clash with existing ones."""
 
     alphabet = string.ascii_lowercase + string.digits
     attempts = max(length * 2, 10)
     for _ in range(attempts):
         candidate = "".join(secrets.choice(alphabet) for _ in range(length))
-        exists = db.scalar(select(ShortLink.id).where(ShortLink.code == candidate))
+        exists = db.scalar(
+            select(ShortLink.id).where(
+                ShortLink.domain == domain, ShortLink.code == candidate
+            )
+        )
         if not exists:
             return candidate
     return "".join(secrets.choice(alphabet) for _ in range(length))
@@ -107,15 +111,22 @@ def _base_context(
     primary_domain = get_primary_site_domain(settings.site_domain)
     base_domain = primary_domain.strip().strip("/") or primary_domain
     base_url = f"https://{base_domain}".rstrip("/")
-    short_link_prefix = build_short_link_prefix(settings)
-    short_link_display_prefix = short_link_prefix
-    for scheme in ("https://", "http://"):
-        if short_link_display_prefix.startswith(scheme):
-            short_link_display_prefix = short_link_display_prefix[len(scheme) :]
-            break
-    short_link_display_suffix = short_link_display_prefix
-    if short_link_display_prefix.startswith(primary_domain):
-        short_link_display_suffix = short_link_display_prefix[len(primary_domain) :]
+    domain_cache: dict[str, dict[str, str]] = {}
+
+    def short_link_metadata(domain: str | None) -> dict[str, str]:
+        metadata = build_short_link_ui_metadata(settings, domain)
+        cached = domain_cache.get(metadata["domain"])
+        if cached is not None:
+            return cached
+        domain_cache[metadata["domain"]] = metadata
+        return metadata
+
+    domain_options = [short_link_metadata(domain) for domain in managed_domains]
+    domain_map = {option["domain"]: option for option in domain_options}
+    primary_metadata = short_link_metadata(primary_domain)
+    short_link_prefix = primary_metadata["prefix"]
+    short_link_display_prefix = primary_metadata["display_prefix"]
+    short_link_display_suffix = primary_metadata["display_suffix"]
     return {
         "request": request,
         "base_domain": base_domain,
@@ -127,6 +138,9 @@ def _base_context(
         "site_settings": settings,
         "managed_domains": managed_domains,
         "primary_domain": primary_domain,
+        "short_link_domain_options": domain_options,
+        "short_link_domain_map": domain_map,
+        "short_link_metadata": short_link_metadata,
         "current_year": datetime.utcnow().year,
         "settings_feedback_html": None,
         "show_logout_button": True,
@@ -176,6 +190,7 @@ def admin_dashboard(
     blacklist_entries = _load_subdomain_blacklist(db) if current_user.is_admin else []
 
     context, settings = _context_with_settings(request, db, current_user)
+    primary_meta = context["short_link_metadata"](context["primary_domain"])
     context.update(
         {
             "active_tab": active_tab,
@@ -183,7 +198,7 @@ def admin_dashboard(
             "subdomains": subdomains,
             "users": users,
             "short_code_suggestion": _generate_short_link_suggestion(
-                db, settings.short_code_length
+                db, settings.short_code_length, primary_meta["domain"]
             ),
             "subdomain_code_options": SUBDOMAIN_CODE_OPTIONS,
             "show_user_column": current_user.is_admin,
