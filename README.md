@@ -1,7 +1,9 @@
-# yet.la 管理平台
+# SubLink 短链子域管理平台
 
-自托管的 yet.la 域名跳转管理平台，提供受 HTTP Basic 保护的管理后台与 API，用于维护子域名路由与短链接。Cloudflare 负责 DNS 与 TLS
+SubLink 是 yet.la 域名的自托管短链与子域跳转管理平台，提供受 HTTP Basic 保护的管理后台与 API，用于维护二级域路由与短链接。Cloudflare 负责 DNS 与 TLS
 终止，Nginx 统一接受公网流量并转发到 FastAPI 后端。
+
+> Open Source Short-Link & Domain Routing System
 
 > 当前版本：**v1.10.8.3** —— 文档现已详细说明多域名治理策略，明确首个域名即平台主域名，用于默认短链与品牌展示；其余域名可供跳转使用，但对外展示的域名文案始终来源于该主域，避免出现多个对外标识。
 
@@ -28,7 +30,7 @@
 
 ## 本仓库包含什么？
 
-> ✅ 当前版本提供一套可直接部署的 HTTPS 反向代理 + FastAPI 管理后端，覆盖 yet.la 全域的短链接与子域跳转管理需求。
+> ✅ SubLink 当前版本提供一套可直接部署的 HTTPS 反向代理 + FastAPI 管理后端，覆盖 yet.la 全域的短链接与子域跳转管理需求。
 
 ```
 .
@@ -42,7 +44,7 @@
 └── scripts/               # 自动化脚本（如备份、冒烟测试）
 ```
 
-- **统一反向代理**：`infra/nginx/conf.d/yetla.upstream.conf` 监听 `80/443`，负责 HTTP→HTTPS 重定向与上游代理。
+- **统一反向代理**：`infra/nginx/conf.d/sublink.upstream.conf` 监听 `80/443`，负责 HTTP→HTTPS 重定向与上游代理。
 - **认证后台 + API**：`backend/app/main.py` 提供 HTMX 管理界面及 REST API，所有写操作需登录（支持 HTTP Basic 或后台表单）。
 - **多用户权限管理**：`backend/app/models.py` 中新增 `users` 表，支持区分管理员与普通用户，并在后台界面完成用户 CRUD 与密码管理。
 - **子域屏蔽名单管控**：`backend/app/subdomain_service.py` 会在启动时写入默认的保留前缀列表，并通过 `/api/subdomain-blacklist` 提供增删改查接口，管理员可自定义限制普通用户可用的子域。
@@ -62,8 +64,8 @@
 
 ```bash
 # 1. 克隆仓库
-$ git clone git@github.com:your-org/yetla.git
-$ cd yetla
+$ git clone git@github.com:your-org/sublink.git
+$ cd sublink
 
 # 2. 启动容器（首次部署建议重新构建镜像）
 $ docker compose up -d --build
@@ -156,8 +158,8 @@ curl -sk -u admin:admin \
    ```
 2. **克隆仓库并进入项目目录**
    ```bash
-   git clone https://github.com/your-org/yetla.git
-   cd yetla
+   git clone https://github.com/your-org/sublink.git
+   cd sublink
    ```
 3. **安装运行依赖（Docker、Docker Compose 插件）**
    - 推荐执行仓库脚本：
@@ -213,7 +215,7 @@ Nginx 容器通过只读挂载 `/root/ssl -> /etc/nginx/ssl-src` 读取证书，
 3. `docker-compose.yml` 将 `/root/ssl` 以只读方式挂载到容器 `/etc/nginx/ssl-src`，并在容器内部创建独立的数据卷 `/etc/nginx/ssl`。入口脚本会自动在可写目录下生成 `fullchain.cer` 与 `private.key` 的符号链接，支持常见的 `*.cer/.pem` 命名。
 4. 如需轮换证书，先更新宿主机指向的目标文件，再执行 `docker compose restart nginx` 触发入口脚本重新链接。
 
-`infra/nginx/conf.d/yetla.upstream.conf` 的核心配置片段如下：
+`infra/nginx/conf.d/sublink.upstream.conf` 的核心配置片段如下：
 
 ```nginx
 server {

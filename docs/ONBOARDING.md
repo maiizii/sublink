@@ -1,6 +1,6 @@
-# Yetla Onboarding Guide
+# SubLink Onboarding Guide
 
-欢迎加入 Yetla 项目！本项目是一套可直接投入生产的自托管平台，用于集中管理二级域名跳转与短链接。当前仓库提供完整的 HTTPS 入口、带 HTMX 管理界面的 FastAPI 后端，以及覆盖部署、备份与冒烟验证的脚本，帮助你快速理解系统全貌并持续迭代。
+欢迎加入 SubLink 项目！本项目是一套可直接投入生产的自托管平台，用于集中管理二级域名跳转与短链接。当前仓库提供完整的 HTTPS 入口、带 HTMX 管理界面的 FastAPI 后端，以及覆盖部署、备份与冒烟验证的脚本，帮助你快速理解系统全貌并持续迭代。
 
 ## 项目背景与目标
 - **业务目标**：提供统一的平台管理自定义二级域名与短链接，对接 DNS、反向代理或重定向服务。
@@ -40,7 +40,7 @@
 
 ## 上手建议
 1. **启动生产环境**：按照根目录 `README.md` 的「快速开始」完成 `.env`、证书与 `docker compose up -d --build`，确认 `https://<域名>/admin` 可登录。
-2. **理解 Nginx 架构**：阅读 `infra/nginx/conf.d/yetla.upstream.conf` 以及入口脚本，掌握证书挂载、反代与自愈机制。
+2. **理解 Nginx 架构**：阅读 `infra/nginx/conf.d/sublink.upstream.conf` 以及入口脚本，掌握证书挂载、反代与自愈机制。
 3. **熟悉后端实现**：重点阅读 `backend/app/main.py`、`views.py` 与 `models.py`，了解 API、HTMX 模板与数据库迁移逻辑，尤其是用户 CRUD、密码修改与权限校验的依赖函数。
 4. **扩展流程与文档**：新增功能时，同步更新 `docs/` 下的设计说明与运维手册，保持文档与实现同步；涉及权限或 UI 变更时请验证移动端显示效果。
 5. **安全合规**：为生产环境配置强随机密码、`SESSION_SECRET` 与访问白名单，并评估进一步的审计与告警需求。

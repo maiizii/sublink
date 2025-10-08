@@ -1,4 +1,4 @@
-"""Backend package for yetla prototype."""
+"""Backend package for the SubLink prototype."""
 
 from .main import app
 
