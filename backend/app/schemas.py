@@ -12,6 +12,7 @@ from .settings_service import (
     normalize_short_link_path,
     normalize_site_domain,
 )
+from .validators import normalize_slug
 
 
 class SubdomainRedirectBase(BaseModel):
@@ -22,7 +23,15 @@ class SubdomainRedirectBase(BaseModel):
     @field_validator("host")
     @classmethod
     def _normalize_host(cls, value: str) -> str:
-        return value.strip().lower()
+        normalized = value.strip().lower()
+        if not normalized:
+            raise ValueError("子域不能为空")
+        parts = normalized.split(".", 1)
+        prefix = normalize_slug(parts[0], field="子域")
+        if len(parts) == 1:
+            return prefix
+        suffix = parts[1].strip()
+        return f"{prefix}.{suffix}" if suffix else prefix
 
     @field_validator("code")
     @classmethod
@@ -50,6 +59,26 @@ class SubdomainRedirectUpdate(SubdomainRedirectBase):
     pass
 
 
+class SubdomainBlacklistBase(BaseModel):
+    label: str = Field(..., description="子域前缀")
+
+    @field_validator("label")
+    @classmethod
+    def _normalize_label(cls, value: str) -> str:
+        return normalize_slug(value, field="子域")
+
+
+class SubdomainBlacklist(SubdomainBlacklistBase):
+    id: int = Field(..., description="数据库主键")
+    created_at: datetime = Field(..., description="创建时间")
+
+    model_config = {"from_attributes": True}
+
+
+class SubdomainBlacklistCreate(SubdomainBlacklistBase):
+    pass
+
+
 class ShortLinkBase(BaseModel):
     target_url: str = Field(..., description="目标地址")
 
@@ -63,7 +92,9 @@ class ShortLinkCreate(ShortLinkBase):
         if value is None:
             return None
         stripped = value.strip()
-        return stripped or None
+        if not stripped:
+            return None
+        return normalize_slug(stripped, field="短链编码")
 
 
 class ShortLink(ShortLinkBase):
@@ -86,7 +117,7 @@ class ShortLinkUpdate(ShortLinkBase):
         stripped = value.strip()
         if not stripped:
             raise ValueError("短链编码不能为空")
-        return stripped
+        return normalize_slug(stripped, field="短链编码")
 
 
 class UserBase(BaseModel):
@@ -96,10 +127,7 @@ class UserBase(BaseModel):
     @field_validator("username")
     @classmethod
     def _normalize_username(cls, value: str) -> str:
-        normalized = value.strip().lower()
-        if not normalized:
-            raise ValueError("用户名不能为空")
-        return normalized
+        return normalize_slug(value, field="用户名")
 
     @field_validator("email")
     @classmethod

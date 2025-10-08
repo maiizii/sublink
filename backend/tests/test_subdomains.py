@@ -33,6 +33,17 @@ def test_create_subdomain_conflict(client: "SimpleClient") -> None:
     assert conflict.json() == {"error": "子域跳转已存在"}
 
 
+def test_create_subdomain_invalid_prefix(client: "SimpleClient") -> None:
+    response = client.post(
+        "/api/subdomains",
+        json={"host": "-bad.test", "target_url": "https://example.com/bad"},
+        auth=ADMIN_AUTH,
+    )
+    assert response.status_code == 422
+    detail = response.json().get("detail", [])
+    assert any("子域" in item.get("msg", "") for item in detail)
+
+
 def test_delete_subdomain(client: "SimpleClient") -> None:
     created = client.post(
         "/api/subdomains",
@@ -71,6 +82,55 @@ def test_update_subdomain_via_htmx_form(client: "SimpleClient") -> None:
     records = listing.json()
     assert records[0]["target_url"] == "https://example.com/new"
     assert records[0]["code"] == 301
+
+
+def test_subdomain_blacklist_blocks_creation(client: "SimpleClient") -> None:
+    entry = client.post(
+        "/api/subdomain-blacklist",
+        json={"label": "blocked"},
+        auth=ADMIN_AUTH,
+    )
+    assert entry.status_code == 201
+
+    denied = client.post(
+        "/api/subdomains",
+        json={"host": "blocked.test", "target_url": "https://example.com/blocked"},
+        auth=ADMIN_AUTH,
+    )
+    assert denied.status_code == 422
+    assert denied.json() == {"detail": "子域前缀已在黑名单中"}
+
+    listing = client.get("/api/subdomain-blacklist", auth=ADMIN_AUTH)
+    assert listing.status_code == 200
+    payload = listing.json()
+    assert any(item["label"] == "blocked" for item in payload)
+
+    delete = client.delete(
+        f"/api/subdomain-blacklist/{entry.json()['id']}", auth=ADMIN_AUTH
+    )
+    assert delete.status_code == 204
+
+
+def test_subdomain_blacklist_blocks_updates(client: "SimpleClient") -> None:
+    redirect = client.post(
+        "/api/subdomains",
+        json={"host": "safe.test", "target_url": "https://example.com/safe"},
+        auth=ADMIN_AUTH,
+    ).json()
+
+    client.post(
+        "/api/subdomain-blacklist",
+        json={"label": "blocked"},
+        auth=ADMIN_AUTH,
+    )
+
+    response = client.put(
+        f"/api/subdomains/{redirect['id']}",
+        json={"host": "blocked.test", "target_url": "https://example.com/new", "code": 302},
+        auth=ADMIN_AUTH,
+    )
+    assert response.status_code == 422
+    assert response.json() == {"detail": "子域前缀已在黑名单中"}
 
 
 def test_host_redirect_status_codes(client: "SimpleClient") -> None:

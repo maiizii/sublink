@@ -26,6 +26,7 @@ from .models import (
     Base,
     ShortLink,
     SiteSettings,
+    SubdomainBlacklist,
     SubdomainRedirect,
     User,
     ensure_subdomain_hits_column,
@@ -39,6 +40,8 @@ from .schemas import (
     ShortLinkUpdate,
     SiteSettings as SiteSettingsSchema,
     SiteSettingsUpdate,
+    SubdomainBlacklist as SubdomainBlacklistSchema,
+    SubdomainBlacklistCreate,
     SubdomainRedirect as SubdomainRedirectSchema,
     SubdomainRedirectCreate,
     SubdomainRedirectUpdate,
@@ -59,8 +62,23 @@ from .settings_service import (
     resolve_short_link_hosts,
     update_site_settings,
 )
+from .validators import extract_subdomain_label
 
 MAX_CODE_ATTEMPTS = 10
+
+_FEEDBACK_TONES = {
+    "success": "theme-feedback__message--success",
+    "info": "theme-feedback__message--info",
+    "warning": "theme-feedback__message--warning",
+    "error": "theme-feedback__message--error",
+}
+
+
+def _feedback_html(message: str, *, tone: str = "info") -> str:
+    """Render a styled feedback snippet for HTMX responses."""
+
+    tone_class = _FEEDBACK_TONES.get(tone, _FEEDBACK_TONES["info"])
+    return f'<div class="theme-feedback__message {tone_class}">{message}</div>'
 
 app = FastAPI(
     title="Yetla Redirect API",
@@ -110,32 +128,20 @@ async def http_exception_handler(request: Request, exc: HTTPException) -> JSONRe
     if exc.status_code in {status.HTTP_404_NOT_FOUND, status.HTTP_409_CONFLICT}:
         if hx_request:
             return HTMLResponse(
-                (
-                    "<div class=\"rounded-md border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700\">"
-                    f"{exc.detail}"
-                    "</div>"
-                ),
+                _feedback_html(str(exc.detail), tone="error"),
                 status_code=exc.status_code,
                 headers=headers,
             )
         return JSONResponse({"error": exc.detail}, status_code=exc.status_code, headers=headers)
     if exc.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY and hx_request:
         return HTMLResponse(
-            (
-                "<div class=\"rounded-md border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700\">"
-                f"{_format_validation_errors(exc.detail)}"
-                "</div>"
-            ),
+            _feedback_html(_format_validation_errors(exc.detail), tone="error"),
             status_code=exc.status_code,
             headers=headers,
         )
     if hx_request:
         return HTMLResponse(
-            (
-                "<div class=\"rounded-md border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700\">"
-                f"{exc.detail}"
-                "</div>"
-            ),
+            _feedback_html(str(exc.detail), tone="error"),
             status_code=exc.status_code,
             headers=headers,
         )
@@ -145,7 +151,7 @@ async def http_exception_handler(request: Request, exc: HTTPException) -> JSONRe
 def _generate_unique_code(db: Session, length: int) -> str:
     """生成唯一的短链接 code。"""
 
-    alphabet = string.ascii_letters + string.digits
+    alphabet = string.ascii_lowercase + string.digits
     for _ in range(MAX_CODE_ATTEMPTS):
         candidate = "".join(secrets.choice(alphabet) for _ in range(length))
         exists = db.scalar(select(ShortLink).where(ShortLink.code == candidate))
@@ -225,6 +231,15 @@ def _ensure_subdomain_permission(redirect: SubdomainRedirect, user: User) -> Non
         raise HTTPException(status.HTTP_403_FORBIDDEN, detail="无权操作该子域")
 
 
+def _ensure_subdomain_not_blacklisted(db: Session, host: str) -> None:
+    label = extract_subdomain_label(host)
+    if not label:
+        return
+    exists = db.scalar(select(SubdomainBlacklist).where(SubdomainBlacklist.label == label))
+    if exists:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail="子域前缀已在黑名单中")
+
+
 async def _parse_short_link_payload(request: Request) -> ShortLinkCreate:
     """解析短链请求载荷，兼容 JSON 与表单提交。"""
 
@@ -238,7 +253,10 @@ async def _parse_short_link_payload(request: Request) -> ShortLinkCreate:
     try:
         return ShortLinkCreate.model_validate(data)
     except ValidationError as exc:  # pragma: no cover - FastAPI 将统一处理
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail=exc.errors()) from exc
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=_serialize_validation_detail(exc.errors()),
+        ) from exc
 
 
 async def _parse_short_link_update_payload(request: Request) -> ShortLinkUpdate:
@@ -254,7 +272,10 @@ async def _parse_short_link_update_payload(request: Request) -> ShortLinkUpdate:
     try:
         return ShortLinkUpdate.model_validate(data)
     except ValidationError as exc:  # pragma: no cover - FastAPI 将统一处理
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail=exc.errors()) from exc
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=_serialize_validation_detail(exc.errors()),
+        ) from exc
 
 
 async def _parse_subdomain_payload(request: Request) -> SubdomainRedirectCreate:
@@ -270,7 +291,10 @@ async def _parse_subdomain_payload(request: Request) -> SubdomainRedirectCreate:
     try:
         return SubdomainRedirectCreate.model_validate(data)
     except ValidationError as exc:  # pragma: no cover - FastAPI 将统一处理
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail=exc.errors()) from exc
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=_serialize_validation_detail(exc.errors()),
+        ) from exc
 
 
 async def _parse_subdomain_update_payload(
@@ -288,7 +312,30 @@ async def _parse_subdomain_update_payload(
     try:
         return SubdomainRedirectUpdate.model_validate(data)
     except ValidationError as exc:  # pragma: no cover - FastAPI 将统一处理
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail=exc.errors()) from exc
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=_serialize_validation_detail(exc.errors()),
+        ) from exc
+
+
+async def _parse_subdomain_blacklist_payload(
+    request: Request,
+) -> SubdomainBlacklistCreate:
+    """解析子域黑名单表单或 JSON 载荷。"""
+
+    content_type = request.headers.get("content-type", "").lower()
+    if content_type.startswith("application/json"):
+        data = await request.json()
+    else:
+        data = await _read_form_data(request, content_type)
+
+    try:
+        return SubdomainBlacklistCreate.model_validate(data)
+    except ValidationError as exc:  # pragma: no cover - FastAPI 统一处理
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=_serialize_validation_detail(exc.errors()),
+        ) from exc
 
 
 def _parse_boolean(value: str | None) -> bool:
@@ -318,7 +365,10 @@ async def _parse_user_create_payload(request: Request) -> UserCreate:
     try:
         return UserCreate.model_validate(data)
     except ValidationError as exc:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail=exc.errors()) from exc
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=_serialize_validation_detail(exc.errors()),
+        ) from exc
 
 
 async def _parse_user_update_payload(request: Request) -> UserUpdate:
@@ -344,7 +394,10 @@ async def _parse_user_update_payload(request: Request) -> UserUpdate:
     try:
         return UserUpdate.model_validate(data)
     except ValidationError as exc:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail=exc.errors()) from exc
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=_serialize_validation_detail(exc.errors()),
+        ) from exc
 
 
 async def _parse_password_change_payload(request: Request) -> PasswordChange:
@@ -358,7 +411,10 @@ async def _parse_password_change_payload(request: Request) -> PasswordChange:
     try:
         return PasswordChange.model_validate(data)
     except ValidationError as exc:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail=exc.errors()) from exc
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=_serialize_validation_detail(exc.errors()),
+        ) from exc
 
 
 async def _parse_site_settings_payload(request: Request) -> SiteSettingsUpdate:
@@ -372,7 +428,10 @@ async def _parse_site_settings_payload(request: Request) -> SiteSettingsUpdate:
     try:
         return SiteSettingsUpdate.model_validate(data)
     except ValidationError as exc:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail=exc.errors()) from exc
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=_serialize_validation_detail(exc.errors()),
+        ) from exc
 
 
 def _format_validation_errors(detail: Any) -> str:
@@ -397,6 +456,28 @@ def _format_validation_errors(detail: Any) -> str:
         if messages:
             return "；".join(messages)
     return str(detail)
+
+
+def _serialize_validation_detail(detail: Any) -> Any:
+    """Ensure validation errors are JSON serializable for API responses."""
+
+    if not isinstance(detail, list):
+        return detail
+    serialized: list[Any] = []
+    for item in detail:
+        if not isinstance(item, dict):
+            serialized.append(item)
+            continue
+        converted = item.copy()
+        ctx = converted.get("ctx")
+        if isinstance(ctx, dict):
+            converted_ctx = {
+                key: (str(value) if isinstance(value, Exception) else value)
+                for key, value in ctx.items()
+            }
+            converted["ctx"] = converted_ctx
+        serialized.append(converted)
+    return serialized
 
 
 def _commit_session(db: Session, conflict_detail: str | None = None) -> None:
@@ -459,11 +540,7 @@ async def update_site_settings_endpoint(
     short_link_prefix = build_short_link_prefix(settings)
     hx_request = request.headers.get("hx-request") == "true"
     if hx_request:
-        feedback_html = (
-            "<div class=\"rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700\">"
-            "站点设置已更新"
-            "</div>"
-        )
+        feedback_html = _feedback_html("站点设置已更新", tone="success")
         template = admin_templates.get_template("admin/partials/settings_card.html")
         content = template.render(
             {
@@ -531,11 +608,9 @@ async def create_short_link(
     db.refresh(short_link)
     hx_request = request.headers.get("hx-request") == "true"
     if hx_request:
-        message = (
-            "<div class=\"rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700\">"
-            "短链创建成功：<code class=\"font-mono\">"
-            f"{short_link.code}"
-            "</code></div>"
+        message = _feedback_html(
+            f"短链创建成功：<code class=\"theme-feedback__code\">{short_link.code}</code>",
+            tone="success",
         )
         return HTMLResponse(
             message,
@@ -564,11 +639,7 @@ def delete_short_link(
     _commit_session(db)
     hx_request = request.headers.get("hx-request") == "true"
     if hx_request:
-        message = (
-            "<div class=\"rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700\">"
-            "短链已删除"
-            "</div>"
-        )
+        message = _feedback_html("短链已删除", tone="warning")
         return HTMLResponse(
             message,
             status_code=status.HTTP_200_OK,
@@ -609,11 +680,7 @@ async def update_short_link(
 
     hx_request = request.headers.get("hx-request") == "true"
     if hx_request:
-        message = (
-            "<div class=\"rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700\">"
-            "短链已更新"
-            "</div>"
-        )
+        message = _feedback_html("短链已更新", tone="success")
         row_html = admin_templates.get_template("admin/partials/link_row.html").render(
             {"request": request, "item": short_link, "oob": True}
         )
@@ -659,6 +726,7 @@ async def create_subdomain(
     """创建子域跳转规则，Host 为完整域名。"""
 
     host = payload.host
+    _ensure_subdomain_not_blacklisted(db, host)
     existing = db.scalar(select(SubdomainRedirect).where(SubdomainRedirect.host == host))
     if existing:
         raise HTTPException(status.HTTP_409_CONFLICT, detail="子域跳转已存在")
@@ -675,11 +743,7 @@ async def create_subdomain(
 
     hx_request = request.headers.get("hx-request") == "true"
     if hx_request:
-        message = (
-            "<div class=\"rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700\">"
-            "子域跳转已创建"
-            "</div>"
-        )
+        message = _feedback_html("子域跳转已创建", tone="success")
         return HTMLResponse(
             message,
             status_code=status.HTTP_201_CREATED,
@@ -688,6 +752,93 @@ async def create_subdomain(
 
     response.headers["HX-Trigger"] = "refresh-subdomains"
     return redirect
+
+
+@app.get(
+    "/api/subdomain-blacklist",
+    response_model=list[SubdomainBlacklistSchema],
+)
+def list_subdomain_blacklist(
+    _admin: User = Depends(require_admin_user),
+    db: Session = Depends(get_db),
+) -> list[SubdomainBlacklist]:
+    """列出子域黑名单条目。"""
+
+    entries = db.scalars(
+        select(SubdomainBlacklist).order_by(SubdomainBlacklist.label.asc())
+    ).all()
+    return list(entries)
+
+
+@app.post(
+    "/api/subdomain-blacklist",
+    response_model=SubdomainBlacklistSchema,
+    status_code=status.HTTP_201_CREATED,
+)
+async def create_subdomain_blacklist_entry(
+    request: Request,
+    response: Response,
+    payload: SubdomainBlacklistCreate = Depends(_parse_subdomain_blacklist_payload),
+    _admin: User = Depends(require_admin_user),
+    db: Session = Depends(get_db),
+) -> SubdomainBlacklist | HTMLResponse:
+    """新增黑名单条目。"""
+
+    existing = db.scalar(
+        select(SubdomainBlacklist).where(SubdomainBlacklist.label == payload.label)
+    )
+    if existing:
+        raise HTTPException(status.HTTP_409_CONFLICT, detail="黑名单条目已存在")
+
+    entry = SubdomainBlacklist(label=payload.label)
+    db.add(entry)
+    _commit_session(db, conflict_detail="黑名单条目已存在")
+    db.refresh(entry)
+
+    hx_request = request.headers.get("hx-request") == "true"
+    if hx_request:
+        message = _feedback_html(
+            f"已加入子域黑名单：<code class=\"theme-feedback__code\">{entry.label}</code>",
+            tone="success",
+        )
+        return HTMLResponse(
+            message,
+            status_code=status.HTTP_201_CREATED,
+            headers={"HX-Trigger": "refresh-subdomain-blacklist"},
+        )
+
+    response.headers["HX-Trigger"] = "refresh-subdomain-blacklist"
+    return entry
+
+
+@app.delete("/api/subdomain-blacklist/{entry_id}")
+def delete_subdomain_blacklist_entry(
+    entry_id: int,
+    request: Request,
+    response: Response,
+    _admin: User = Depends(require_admin_user),
+    db: Session = Depends(get_db),
+) -> Response:
+    """删除黑名单条目。"""
+
+    entry = db.get(SubdomainBlacklist, entry_id)
+    if entry is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="黑名单条目不存在")
+
+    db.delete(entry)
+    _commit_session(db)
+
+    hx_request = request.headers.get("hx-request") == "true"
+    if hx_request:
+        message = _feedback_html("黑名单条目已删除", tone="warning")
+        return HTMLResponse(
+            message,
+            status_code=status.HTTP_200_OK,
+            headers={"HX-Trigger": "refresh-subdomain-blacklist"},
+        )
+
+    response.headers["HX-Trigger"] = "refresh-subdomain-blacklist"
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @app.get(
@@ -734,11 +885,7 @@ async def create_user(
 
     hx_request = request.headers.get("hx-request") == "true"
     if hx_request:
-        message = (
-            "<div class=\"rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700\">"
-            "用户创建成功"
-            "</div>"
-        )
+        message = _feedback_html("用户创建成功", tone="success")
         return HTMLResponse(
             message,
             status_code=status.HTTP_201_CREATED,
@@ -786,11 +933,7 @@ async def update_user(
 
     hx_request = request.headers.get("hx-request") == "true"
     if hx_request:
-        message = (
-            "<div class=\"rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700\">"
-            "用户信息已更新"
-            "</div>"
-        )
+        message = _feedback_html("用户信息已更新", tone="success")
         row_html = admin_templates.get_template("admin/partials/user_row.html").render(
             {"request": request, "item": user, "oob": True}
         )
@@ -834,11 +977,7 @@ def delete_user(
 
     hx_request = request.headers.get("hx-request") == "true"
     if hx_request:
-        message = (
-            "<div class=\"rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700\">"
-            "用户已删除"
-            "</div>"
-        )
+        message = _feedback_html("用户已删除", tone="warning")
         return HTMLResponse(
             message,
             status_code=status.HTTP_200_OK,
@@ -872,11 +1011,7 @@ async def change_own_password(
 
     hx_request = request.headers.get("hx-request") == "true"
     if hx_request:
-        message = (
-            "<div class=\"rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700\">"
-            "密码修改成功"
-            "</div>"
-        )
+        message = _feedback_html("密码修改成功", tone="success")
         return HTMLResponse(
             message,
             status_code=status.HTTP_200_OK,
@@ -905,11 +1040,7 @@ def delete_subdomain(
     _commit_session(db)
     hx_request = request.headers.get("hx-request") == "true"
     if hx_request:
-        message = (
-            "<div class=\"rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700\">"
-            "子域跳转已删除"
-            "</div>"
-        )
+        message = _feedback_html("子域跳转已删除", tone="warning")
         return HTMLResponse(
             message,
             status_code=status.HTTP_200_OK,
@@ -941,6 +1072,7 @@ async def update_subdomain(
 
     normalized_host = payload.host
     if normalized_host != redirect.host:
+        _ensure_subdomain_not_blacklisted(db, normalized_host)
         exists = db.scalar(
             select(SubdomainRedirect).where(SubdomainRedirect.host == normalized_host)
         )
@@ -958,11 +1090,7 @@ async def update_subdomain(
 
     hx_request = request.headers.get("hx-request") == "true"
     if hx_request:
-        message = (
-            "<div class=\"rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700\">"
-            "子域跳转已更新"
-            "</div>"
-        )
+        message = _feedback_html("子域跳转已更新", tone="success")
         row_html = admin_templates.get_template("admin/partials/subdomain_row.html").render(
             {"request": request, "item": redirect, "oob": True}
         )

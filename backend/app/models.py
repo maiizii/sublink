@@ -130,6 +130,17 @@ class SubdomainRedirect(Base):
         return self.owner.username if self.owner else None
 
 
+class SubdomainBlacklist(Base):
+    """禁止占用的子域前缀列表。"""
+
+    __tablename__ = "subdomain_blacklist"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    label: Mapped[str] = mapped_column(String(64), unique=True, index=True, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
 class ShortLink(Base):
     """短链接记录表。"""
 

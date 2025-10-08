@@ -98,6 +98,10 @@
                       autocomplete="off"
                       spellcheck="false"
                       placeholder="自动生成，可修改"
+                      pattern="^[a-z0-9](?:[a-z0-9-]{1,18}[a-z0-9])$"
+                      minlength="3"
+                      maxlength="20"
+                      title="仅允许小写字母、数字或连字符，首尾为字母或数字，长度 3-20"
                     />
                   </div>
                 </div>
@@ -183,6 +187,10 @@
                       autocomplete="off"
                       spellcheck="false"
                       data-domain-input-field
+                      pattern="^[a-z0-9](?:[a-z0-9-]{1,18}[a-z0-9])$"
+                      minlength="3"
+                      maxlength="20"
+                      title="仅允许小写字母、数字或连字符，首尾为字母或数字，长度 3-20"
                     />
                     <span class="theme-input-affix__addon theme-input-affix__addon--suffix">.{{ base_domain }}</span>
                     <input type="hidden" name="host" data-domain-input-hidden />
@@ -239,6 +247,77 @@
             {% include "admin/partials/subdomain_table.html" %}
           </div>
         </section>
+        {% if current_user and current_user.is_admin %}
+        <section class="theme-card">
+          <div class="theme-card__header">
+            <h2 class="theme-card__title">创建子域黑名单</h2>
+            <p class="theme-card__subtitle">
+              添加受限前缀，阻止创建或修改到这些子域名。
+            </p>
+          </div>
+          <div class="theme-card__body">
+            <form
+              class="theme-form"
+              action="/api/subdomain-blacklist"
+              method="post"
+              hx-post="/api/subdomain-blacklist"
+              hx-trigger="submit"
+              hx-target="#subdomain-blacklist-feedback"
+              hx-swap="innerHTML"
+              data-reset-on-success="true"
+              data-success-event="refresh-subdomain-blacklist"
+            >
+              <div class="theme-form__grid theme-form__grid--two">
+                <div class="theme-field theme-form__span-full theme-field--mobile-condensed">
+                  <label for="blacklist-label" class="theme-label">子域前缀 *</label>
+                  <input
+                    id="blacklist-label"
+                    name="label"
+                    type="text"
+                    required
+                    class="theme-input theme-input--wide"
+                    placeholder="如 marketing"
+                    autocomplete="off"
+                    spellcheck="false"
+                    pattern="^[a-z0-9](?:[a-z0-9-]{1,18}[a-z0-9])$"
+                    minlength="3"
+                    maxlength="20"
+                    title="仅允许小写字母、数字或连字符，首尾为字母或数字，长度 3-20"
+                  />
+                </div>
+              </div>
+              <div class="theme-form__footer theme-form__footer--center">
+                <button type="submit" class="theme-button theme-button--solid">
+                  添加黑名单
+                </button>
+              </div>
+            </form>
+          </div>
+          <div
+            id="subdomain-blacklist-feedback"
+            class="theme-feedback"
+            role="status"
+            aria-live="polite"
+          ></div>
+        </section>
+        <section class="theme-card">
+          <div class="theme-card__header">
+            <h2 class="theme-card__title">子域黑名单列表</h2>
+            <p class="theme-card__subtitle">
+              当前受限制的子域前缀，命中将无法创建或修改。
+            </p>
+          </div>
+          <div
+            id="subdomain-blacklist-table"
+            class="theme-card__body theme-card__body--table"
+            hx-get="/admin/subdomains/blacklist/table"
+            hx-trigger="load, refresh-subdomain-blacklist from:body"
+            hx-swap="innerHTML"
+          >
+            {% include "admin/partials/subdomain_blacklist_table.html" %}
+          </div>
+        </section>
+        {% endif %}
       </div>
       {% elif active_tab == 'users' %}
       <div class="theme-stack">
@@ -274,6 +353,10 @@
                       placeholder="如 alice"
                       autocomplete="off"
                       spellcheck="false"
+                      pattern="^[a-z0-9](?:[a-z0-9-]{1,18}[a-z0-9])$"
+                      minlength="3"
+                      maxlength="20"
+                      title="仅允许小写字母、数字或连字符，首尾为字母或数字，长度 3-20"
                     />
                   </div>
                   <div class="theme-field theme-field--mobile-condensed">
