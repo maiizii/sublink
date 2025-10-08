@@ -107,7 +107,7 @@ def test_subdomain_blacklist_blocks_creation(client: "SimpleClient") -> None:
         auth=user_auth,
     )
     assert denied.status_code == 422
-    assert denied.json() == {"detail": "子域前缀已在黑名单中"}
+    assert denied.json() == {"detail": "子域前缀已在屏蔽名单中"}
 
     allowed = client.post(
         "/api/subdomains",
@@ -161,7 +161,7 @@ def test_subdomain_blacklist_blocks_updates(client: "SimpleClient") -> None:
         auth=owner_auth,
     )
     assert response.status_code == 422
-    assert response.json() == {"detail": "子域前缀已在黑名单中"}
+    assert response.json() == {"detail": "子域前缀已在屏蔽名单中"}
 
     admin_update = client.put(
         f"/api/subdomains/{redirect['id']}",

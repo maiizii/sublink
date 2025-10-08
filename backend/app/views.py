@@ -392,7 +392,7 @@ def subdomain_blacklist_table(
     admin: User = Depends(require_admin_user),
     db: Session = Depends(get_db),
 ) -> HTMLResponse:
-    """返回子域黑名单表格片段。"""
+    """返回子域屏蔽名单表格片段。"""
 
     entries = _load_subdomain_blacklist(db)
     context, _ = _context_with_settings(request, db, admin)

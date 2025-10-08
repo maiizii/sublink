@@ -243,52 +243,6 @@
             {% include "admin/partials/subdomain_table.html" %}
           </div>
         </section>
-        {% if current_user and current_user.is_admin %}
-        <section class="theme-card">
-          <div class="theme-card__header">
-            <h2 class="theme-card__title">管理子域黑名单</h2>
-            <p class="theme-card__subtitle">
-              使用空格分隔多个子域前缀，保存后普通用户将无法使用这些前缀。
-            </p>
-          </div>
-          <div class="theme-card__body">
-            <form
-              class="theme-form"
-              action="/api/subdomain-blacklist"
-              method="post"
-              hx-put="/api/subdomain-blacklist"
-              hx-trigger="submit"
-              hx-target="#subdomain-blacklist-feedback"
-              hx-swap="innerHTML"
-            >
-              <div class="theme-field theme-form__span-full theme-field--mobile-condensed">
-                <label for="subdomain-blacklist-labels" class="theme-label">屏蔽前缀列表</label>
-                <textarea
-                  id="subdomain-blacklist-labels"
-                  name="labels"
-                  class="theme-textarea"
-                  rows="4"
-                  placeholder="例如：www api admin"
-                  spellcheck="false">{{ subdomain_blacklist_text }}</textarea>
-              </div>
-              <p class="theme-help-text">
-                使用空格分隔多个子域前缀，管理员可随时调整；普通用户创建或修改子域时将受到限制。
-              </p>
-              <div class="theme-form__footer theme-form__footer--center">
-                <button type="submit" class="theme-button theme-button--solid">
-                  保存屏蔽列表
-                </button>
-              </div>
-            </form>
-          </div>
-          <div
-            id="subdomain-blacklist-feedback"
-            class="theme-feedback"
-            role="status"
-            aria-live="polite"
-          ></div>
-        </section>
-        {% endif %}
       </div>
       {% elif active_tab == 'users' %}
       <div class="theme-stack">
@@ -411,6 +365,59 @@
       {% elif active_tab == 'settings' %}
       <div class="theme-stack">
         {% include "admin/partials/settings_card.html" %}
+        <section class="theme-card">
+          <div class="theme-card__header">
+            <h2 class="theme-card__title">管理子域屏蔽名单</h2>
+            <p class="theme-card__subtitle">
+              使用空格分隔多个子域前缀，保存后普通用户将无法使用这些前缀。
+            </p>
+          </div>
+          <div class="theme-card__body">
+            <form
+              class="theme-form"
+              action="/api/subdomain-blacklist"
+              method="post"
+              hx-put="/api/subdomain-blacklist"
+              hx-trigger="submit"
+              hx-target="#subdomain-blacklist-feedback"
+              hx-swap="innerHTML"
+            >
+              <div class="theme-field theme-form__span-full theme-field--mobile-condensed">
+                <label for="subdomain-blacklist-labels" class="theme-label">屏蔽前缀列表</label>
+                <textarea
+                  id="subdomain-blacklist-labels"
+                  name="labels"
+                  class="theme-input theme-input--wide theme-textarea"
+                  rows="4"
+                  placeholder="例如：www api admin"
+                  spellcheck="false">{{ subdomain_blacklist_text }}</textarea>
+              </div>
+              <p class="theme-help-text">
+                使用空格分隔多个子域前缀，管理员可随时调整；普通用户创建或修改子域时将受到限制。
+              </p>
+              <div class="theme-form__footer theme-form__footer--center">
+                <button type="submit" class="theme-button theme-button--solid">
+                  保存屏蔽名单
+                </button>
+              </div>
+            </form>
+          </div>
+          <div
+            id="subdomain-blacklist-feedback"
+            class="theme-feedback"
+            role="status"
+            aria-live="polite"
+          ></div>
+          <div
+            id="subdomain-blacklist-table"
+            class="theme-card__body theme-card__body--table"
+            hx-get="/admin/subdomains/blacklist/table"
+            hx-trigger="load, refresh-subdomain-blacklist from:body"
+            hx-swap="innerHTML"
+          >
+            {% include "admin/partials/subdomain_blacklist_table.html" %}
+          </div>
+        </section>
       </div>
       {% endif %}
     </div>
