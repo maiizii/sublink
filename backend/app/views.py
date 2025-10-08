@@ -6,6 +6,7 @@ import string
 from datetime import datetime
 from pathlib import Path
 from typing import Any
+from urllib.parse import parse_qsl
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -43,6 +44,33 @@ TEMPLATE_DIR = Path(__file__).resolve().parent / "templates"
 templates = Jinja2Templates(directory=str(TEMPLATE_DIR))
 
 router = APIRouter()
+
+
+async def _read_login_form(request: Request) -> dict[str, str]:
+    """Parse login form submissions while tolerating missing python-multipart."""
+
+    try:
+        form = await request.form()
+    except AssertionError as exc:
+        content_type = (request.headers.get("content-type") or "").lower()
+        if content_type.startswith("application/x-www-form-urlencoded"):
+            charset = "utf-8"
+            if "charset=" in content_type:
+                charset = (
+                    content_type.split("charset=")[-1].split(";")[0].strip() or "utf-8"
+                )
+            try:
+                body = (await request.body()).decode(charset)
+            except UnicodeDecodeError as decode_exc:
+                raise HTTPException(
+                    status.HTTP_400_BAD_REQUEST, detail="表单内容解码失败"
+                ) from decode_exc
+            return {key: value for key, value in parse_qsl(body, keep_blank_values=False)}
+        raise HTTPException(
+            status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+            detail="缺少 python-multipart 依赖，无法解析表单上传",
+        ) from exc
+    return {key: value for key, value in form.multi_items()}
 
 
 def _safe_redirect_target(target: str | None) -> str:
@@ -261,7 +289,7 @@ async def admin_login_submit(
 ) -> HTMLResponse:
     """Handle login submissions and persist session state on success."""
 
-    form = await request.form()
+    form = await _read_login_form(request)
     username = (form.get("username") or "").strip()
     password = form.get("password") or ""
 
