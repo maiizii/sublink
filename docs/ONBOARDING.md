@@ -24,7 +24,7 @@
 ## 关键设计领域
 
 1. **DNS 与域名管理**
-   - 需在 DNS 服务商（推荐 Cloudflare）配置 `yet.la` 与 `*.yet.la` 的泛解析指向入口服务器。
+   - 需在 DNS 服务商（推荐 Cloudflare）配置主域及其泛解析指向入口服务器（例如 `yet.la` 与 `*.yet.la`）。
    - 熟悉 Cloudflare 代理模式及 SSL/TLS 配置，确保源站证书有效并启用 Full (strict)。
 2. **跳转与统计**
    - FastAPI 通过数据库维护短链与子域跳转，并自动统计命中次数；了解 `backend/app/models.py` 中的字段设计（含 `users` 关联）有助于二次开发。

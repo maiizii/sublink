@@ -1,4 +1,4 @@
-"""FastAPI 应用，提供 SubLink（yet.la）的短链接与子域跳转管理接口。"""
+"""FastAPI 应用，提供 SubLink（yet.la 等）的短链接与子域跳转管理接口。"""
 from __future__ import annotations
 
 import secrets

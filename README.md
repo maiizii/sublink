@@ -1,6 +1,6 @@
 # SubLink 短链子域管理平台
 
-SubLink 是 yet.la 域名的自托管短链与子域跳转管理平台，提供受 HTTP Basic 保护的管理后台与 API，用于维护二级域路由与短链接。Cloudflare 负责 DNS 与 TLS
+SubLink 是 yet.la 等多域名的自托管短链与子域跳转管理平台，提供受 HTTP Basic 保护的管理后台与 API，用于维护二级域路由与短链接。Cloudflare 负责 DNS 与 TLS
 终止，Nginx 统一接受公网流量并转发到 FastAPI 后端。
 
 > Open Source Short-Link & Domain Routing System
@@ -30,7 +30,7 @@ SubLink 是 yet.la 域名的自托管短链与子域跳转管理平台，提供�
 
 ## 本仓库包含什么？
 
-> ✅ SubLink 当前版本提供一套可直接部署的 HTTPS 反向代理 + FastAPI 管理后端，覆盖 yet.la 全域的短链接与子域跳转管理需求。
+> ✅ SubLink 当前版本提供一套可直接部署的 HTTPS 反向代理 + FastAPI 管理后端，覆盖 yet.la 等域名的短链接与子域跳转管理需求。
 
 ```
 .
@@ -55,10 +55,10 @@ SubLink 是 yet.la 域名的自托管短链与子域跳转管理平台，提供�
 
 ## 前置条件
 
-1. **域名解析**：在 DNS 服务商（如 Cloudflare）为 `yet.la` 与 `*.yet.la` 配置 A/AAAA 记录指向服务器公网 IP。
+1. **域名解析**：在 DNS 服务商（如 Cloudflare）为主域（例如 `yet.la`）与其泛域名（如 `*.yet.la`）配置 A/AAAA 记录指向服务器公网 IP。
 2. **服务器环境**：Linux（推荐 Ubuntu 22.04 LTS），具备 root/sudo 权限。
 3. **运行依赖**：`git`、`docker`、`docker compose` 插件、`make`（用于 Makefile 命令）。
-4. **TLS 证书**：持有覆盖 `yet.la` 与 `*.yet.la` 的证书链与私钥，后续章节提供标准化路径示例。
+4. **TLS 证书**：持有覆盖主域与泛域的证书链与私钥（例如 `yet.la` 与 `*.yet.la`），后续章节提供标准化路径示例。
 
 ## 快速开始
 
