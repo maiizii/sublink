@@ -30,9 +30,9 @@ from .models import (
     SubdomainRedirect,
     User,
     ensure_subdomain_hits_column,
-    ensure_domain_columns,
     ensure_user_association_columns,
     engine,
+    DEFAULT_SITE_DOMAIN,
 )
 from .schemas import (
     ShortLink as ShortLinkSchema,
@@ -57,14 +57,10 @@ from .user_service import ensure_default_admin
 from .security import hash_password, verify_password
 from .settings_service import (
     build_short_link_prefix,
-    build_short_link_ui_metadata,
     ensure_default_settings,
     extract_short_link,
-    get_primary_site_domain,
     get_site_settings,
-    match_short_link_domain,
     resolve_short_link_hosts,
-    split_site_domain_values,
     update_site_settings,
 )
 from .subdomain_service import ensure_default_subdomain_blacklist
@@ -85,78 +81,6 @@ def _feedback_html(message: str, *, tone: str = "info") -> str:
 
     tone_class = _FEEDBACK_TONES.get(tone, _FEEDBACK_TONES["info"])
     return f'<div class="theme-feedback__message {tone_class}">{message}</div>'
-
-
-def _resolve_short_link_domain(settings: SiteSettings, candidate: str | None) -> str:
-    managed = split_site_domain_values(settings.site_domain)
-    if not managed:
-        return get_primary_site_domain(settings.site_domain)
-
-    if candidate:
-        normalized = candidate.strip().lower()
-        if normalized.startswith("www.") and normalized[4:] in managed:
-            normalized = normalized[4:]
-        if normalized in managed:
-            return normalized
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail="短链域名不在管理列表中")
-
-    return managed[0]
-
-
-def _resolve_subdomain_domain(
-    settings: SiteSettings, host: str, candidate: str | None
-) -> str:
-    managed = split_site_domain_values(settings.site_domain)
-    primary = managed[0] if managed else get_primary_site_domain(settings.site_domain)
-    normalized_host = host.strip().lower()
-
-    if candidate:
-        normalized = candidate.strip().lower()
-        if normalized.startswith("www.") and normalized[4:] in managed:
-            normalized = normalized[4:]
-        if normalized in managed:
-            return normalized
-        if normalized:
-            return normalized
-
-    for domain in managed:
-        if normalized_host == domain or normalized_host.endswith(f".{domain}"):
-            return domain
-
-    if "." in normalized_host:
-        return normalized_host.split(".", 1)[1]
-
-    return primary
-
-
-def _normalize_subdomain_host_for_domain(host: str, domain: str) -> str:
-    """Ensure stored subdomain hosts include the resolved domain suffix."""
-
-    normalized_host = (host or "").strip().lower()
-    normalized_domain = (domain or "").strip().lower()
-    if not normalized_host:
-        return normalized_domain
-    if "." in normalized_host:
-        if not normalized_domain:
-            return normalized_host
-        if normalized_host == normalized_domain:
-            return normalized_domain
-        if normalized_host.endswith(f".{normalized_domain}"):
-            return normalized_host
-
-        host_segments = normalized_host.count(".")
-        domain_segments = normalized_domain.count(".")
-        if host_segments == domain_segments:
-            return normalized_domain or normalized_host
-
-        suffix = normalized_host.split(".", 1)[1]
-        prefix = normalized_host[: -(len(suffix) + 1)] if suffix else ""
-        if not prefix:
-            return normalized_domain
-        return f"{prefix}.{normalized_domain}" if normalized_domain else normalized_host
-    if not normalized_domain:
-        return normalized_host
-    return f"{normalized_host}.{normalized_domain}"
 
 app = FastAPI(
     title="Yetla Redirect API",
@@ -190,7 +114,6 @@ def ensure_tables() -> None:
     try:
         Base.metadata.create_all(bind=engine)
         ensure_subdomain_hits_column()
-        ensure_domain_columns()
         ensure_user_association_columns()
         ensure_default_settings()
         ensure_default_admin()
@@ -228,17 +151,13 @@ async def http_exception_handler(request: Request, exc: HTTPException) -> JSONRe
     return JSONResponse({"detail": exc.detail}, status_code=exc.status_code, headers=headers)
 
 
-def _generate_unique_code(db: Session, length: int, domain: str) -> str:
+def _generate_unique_code(db: Session, length: int) -> str:
     """生成唯一的短链接 code。"""
 
     alphabet = string.ascii_lowercase + string.digits
     for _ in range(MAX_CODE_ATTEMPTS):
         candidate = "".join(secrets.choice(alphabet) for _ in range(length))
-        exists = db.scalar(
-            select(ShortLink).where(
-                ShortLink.domain == domain, ShortLink.code == candidate
-            )
-        )
+        exists = db.scalar(select(ShortLink).where(ShortLink.code == candidate))
         if not exists:
             return candidate
     raise HTTPException(status.HTTP_409_CONFLICT, detail="无法生成唯一的短链接编码")
@@ -746,26 +665,18 @@ async def create_short_link(
     """创建短链接，code 可空自动生成。"""
 
     settings = get_site_settings(db)
-    domain = _resolve_short_link_domain(settings, payload.domain)
     code = payload.code
     if code and not current_user.is_admin:
         _ensure_slug_length(code, field="短链编码")
     if code:
-        exists = db.scalar(
-            select(ShortLink.id).where(
-                ShortLink.domain == domain, ShortLink.code == code
-            )
-        )
+        exists = db.scalar(select(ShortLink).where(ShortLink.code == code))
         if exists:
             raise HTTPException(status.HTTP_409_CONFLICT, detail="短链接编码已存在")
     else:
-        code = _generate_unique_code(db, settings.short_code_length, domain)
+        code = _generate_unique_code(db, settings.short_code_length)
 
     short_link = ShortLink(
-        code=code,
-        target_url=payload.target_url,
-        user_id=current_user.id,
-        domain=domain,
+        code=code, target_url=payload.target_url, user_id=current_user.id
     )
     db.add(short_link)
     _commit_session(db, conflict_detail="短链接编码已存在")
@@ -829,27 +740,15 @@ async def update_short_link(
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="短链接不存在")
     _ensure_short_link_permission(short_link, current_user)
 
-    settings = get_site_settings(db)
-    new_domain = _resolve_short_link_domain(
-        settings, payload.domain or short_link.domain
-    )
-    if payload.code != short_link.code and not current_user.is_admin:
-        _ensure_slug_length(payload.code, field="短链编码")
-
-    if payload.code != short_link.code or new_domain != short_link.domain:
-        exists = db.scalar(
-            select(ShortLink.id).where(
-                ShortLink.domain == new_domain,
-                ShortLink.code == payload.code,
-                ShortLink.id != short_link.id,
-            )
-        )
+    if payload.code != short_link.code:
+        if not current_user.is_admin:
+            _ensure_slug_length(payload.code, field="短链编码")
+        exists = db.scalar(select(ShortLink).where(ShortLink.code == payload.code))
         if exists:
             raise HTTPException(status.HTTP_409_CONFLICT, detail="短链接编码已存在")
 
     short_link.code = payload.code
     short_link.target_url = payload.target_url
-    short_link.domain = new_domain
     if short_link.user_id is None:
         short_link.user_id = current_user.id
     db.add(short_link)
@@ -858,29 +757,9 @@ async def update_short_link(
 
     hx_request = request.headers.get("hx-request") == "true"
     if hx_request:
-        managed_domains = split_site_domain_values(settings.site_domain)
-        domain_options = [
-            build_short_link_ui_metadata(settings, domain) for domain in managed_domains
-        ]
-        metadata_cache = {option["domain"]: option for option in domain_options}
-
-        def _metadata(domain: str | None) -> dict[str, str]:
-            metadata = build_short_link_ui_metadata(settings, domain)
-            cached = metadata_cache.get(metadata["domain"])
-            if cached is not None:
-                return cached
-            metadata_cache[metadata["domain"]] = metadata
-            return metadata
-
         message = _feedback_html("短链已更新", tone="success")
         row_html = admin_templates.get_template("admin/partials/link_row.html").render(
-            {
-                "request": request,
-                "item": short_link,
-                "oob": True,
-                "short_link_metadata": _metadata,
-                "short_link_domain_options": domain_options,
-            }
+            {"request": request, "item": short_link, "oob": True}
         )
         content = f"{message}{row_html}"
         return HTMLResponse(
@@ -923,19 +802,13 @@ async def create_subdomain(
 ) -> SubdomainRedirect | HTMLResponse:
     """创建子域跳转规则，Host 为完整域名。"""
 
-    settings = get_site_settings(db)
-    domain = _resolve_subdomain_domain(settings, payload.host, payload.domain)
-    host = _normalize_subdomain_host_for_domain(payload.host, domain)
+    host = payload.host
     if not current_user.is_admin:
         label = extract_subdomain_label(host)
         if label:
             _ensure_slug_length(label, field="子域前缀")
     _ensure_subdomain_not_blacklisted(db, host, current_user)
-    existing = db.scalar(
-        select(SubdomainRedirect.id).where(
-            SubdomainRedirect.domain == domain, SubdomainRedirect.host == host
-        )
-    )
+    existing = db.scalar(select(SubdomainRedirect).where(SubdomainRedirect.host == host))
     if existing:
         raise HTTPException(status.HTTP_409_CONFLICT, detail="子域跳转已存在")
 
@@ -943,7 +816,6 @@ async def create_subdomain(
         host=host,
         target_url=payload.target_url,
         code=payload.code,
-        domain=domain,
         user_id=current_user.id,
     )
     db.add(redirect)
@@ -1334,29 +1206,20 @@ async def update_subdomain(
 ) -> SubdomainRedirect | HTMLResponse:
     """更新子域跳转规则。"""
 
-    settings = get_site_settings(db)
     redirect = db.get(SubdomainRedirect, redirect_id)
     if redirect is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="子域跳转不存在")
     _ensure_subdomain_permission(redirect, current_user)
 
-    new_domain = _resolve_subdomain_domain(
-        settings, payload.host, payload.domain or redirect.domain
-    )
-    normalized_host = _normalize_subdomain_host_for_domain(payload.host, new_domain)
-
-    if normalized_host != redirect.host or new_domain != redirect.domain:
-        if normalized_host != redirect.host and not current_user.is_admin:
+    normalized_host = payload.host
+    if normalized_host != redirect.host:
+        if not current_user.is_admin:
             label = extract_subdomain_label(normalized_host)
             if label:
                 _ensure_slug_length(label, field="子域前缀")
         _ensure_subdomain_not_blacklisted(db, normalized_host, current_user)
         exists = db.scalar(
-            select(SubdomainRedirect.id).where(
-                SubdomainRedirect.domain == new_domain,
-                SubdomainRedirect.host == normalized_host,
-                SubdomainRedirect.id != redirect.id,
-            )
+            select(SubdomainRedirect).where(SubdomainRedirect.host == normalized_host)
         )
         if exists:
             raise HTTPException(status.HTTP_409_CONFLICT, detail="子域跳转已存在")
@@ -1364,7 +1227,6 @@ async def update_subdomain(
     redirect.host = normalized_host
     redirect.target_url = payload.target_url
     redirect.code = payload.code
-    redirect.domain = new_domain
     if redirect.user_id is None:
         redirect.user_id = current_user.id
     db.add(redirect)
@@ -1401,10 +1263,12 @@ def catch_all(
 
     settings = get_site_settings(db)
     short_link_hosts = resolve_short_link_hosts(settings)
-    matched_domain = match_short_link_domain(host, settings)
-    allow_short_link = host in short_link_hosts and matched_domain is not None
+    allow_short_link = host in short_link_hosts
 
-    fallback_domain = get_primary_site_domain(settings.site_domain).strip()
+    fallback_domain = (settings.site_domain or "").strip()
+    if "://" in fallback_domain:
+        fallback_domain = fallback_domain.split("://", 1)[1]
+    fallback_domain = fallback_domain.strip("/") or DEFAULT_SITE_DOMAIN
     if "/" in fallback_domain:
         fallback_domain = fallback_domain.split("/", 1)[0]
 
@@ -1415,15 +1279,11 @@ def catch_all(
     else:
         fallback_url = f"https://{fallback_domain}"
 
-    if allow_short_link and request.method in {"GET", "HEAD"} and matched_domain:
+    if allow_short_link and request.method in {"GET", "HEAD"}:
         match = extract_short_link(path, settings)
         if match:
             code, extra_path = match
-            short_link = db.scalar(
-                select(ShortLink).where(
-                    ShortLink.domain == matched_domain, ShortLink.code == code
-                )
-            )
+            short_link = db.scalar(select(ShortLink).where(ShortLink.code == code))
             if short_link is None:
                 return RedirectResponse(
                     fallback_url, status_code=status.HTTP_302_FOUND

@@ -10,29 +10,28 @@
       <div class="theme-form__grid theme-form__grid--three">
         <div class="theme-field">
           <label for="host-{{ item.id }}" class="theme-label">子域</label>
-          {% set domain_options = managed_domains if managed_domains else [base_domain] %}
-          {% set computed = namespace(domain=domain_options[0], prefix=item.host) %}
-          {% for option in domain_options %}
-          {% if item.host == option %}
-          {% set computed.domain = option %}
-          {% set computed.prefix = '' %}
-          {% break %}
-          {% elif item.host.endswith('.' ~ option) %}
-          {% set computed.domain = option %}
-          {% set computed.prefix = item.host[: item.host|length - ('.' ~ option)|length] %}
-          {% break %}
+          {% set domain_suffix = '' %}
+          {% set suffix = '' %}
+          {% if base_domain %}
+          {% set suffix = '.' ~ base_domain %}
+          {% if item.host.endswith(suffix) %}
+          {% set domain_suffix = base_domain %}
           {% endif %}
-          {% endfor %}
+          {% endif %}
+          {% set host_ns = namespace(value=item.host) %}
+          {% if domain_suffix %}
+          {% set host_ns.value = item.host[: item.host|length - ('.' ~ domain_suffix)|length] %}
+          {% endif %}
           <div
             class="theme-input-affix"
             data-domain-input
-            data-domain-suffix="{{ computed.domain }}"
+            data-domain-suffix="{{ domain_suffix }}"
           >
             <input
               id="host-{{ item.id }}"
               type="text"
               required
-              value="{{ computed.prefix }}"
+              value="{{ host_ns.value }}"
               class="theme-input-affix__input"
               autocomplete="off"
               spellcheck="false"
@@ -40,21 +39,8 @@
               pattern="^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$"
               title="仅允许小写字母、数字或连字符，首尾需为字母或数字"
             />
-            <span class="theme-input-affix__addon theme-input-affix__addon--suffix">
-              .
-              <select
-                id="host-domain-{{ item.id }}"
-                class="theme-input-affix__select"
-                data-domain-input-select
-                aria-label="选择管理域名"
-              >
-                {% for option in domain_options %}
-                <option value="{{ option }}" {% if option == computed.domain %}selected{% endif %}>{{ option }}</option>
-                {% endfor %}
-              </select>
-            </span>
+            <span class="theme-input-affix__addon theme-input-affix__addon--suffix">.{{ base_domain }}</span>
             <input type="hidden" name="host" value="{{ item.host }}" data-domain-input-hidden />
-            <input type="hidden" name="domain" value="{{ computed.domain }}" data-domain-input-domain />
           </div>
         </div>
         <div class="theme-field">

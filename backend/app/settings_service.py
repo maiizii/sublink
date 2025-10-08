@@ -5,7 +5,6 @@ import os
 from typing import Any
 
 from sqlalchemy import select
-from sqlalchemy.exc import OperationalError, ProgrammingError
 from sqlalchemy.orm import Session
 
 from .models import (
@@ -14,57 +13,22 @@ from .models import (
     DEFAULT_SHORT_CODE_LENGTH,
     DEFAULT_SHORT_LINK_PATH,
     DEFAULT_SITE_DOMAIN,
-    Base,
     SessionLocal,
     SiteSettings,
-    engine,
 )
 
 _MIN_SHORT_CODE_LENGTH = 3
 _MAX_SHORT_CODE_LENGTH = 64
 
 
-def _normalize_site_domain_values(value: str | None) -> list[str]:
-    raw = (value or "").replace(",", " ")
-    candidates = [segment.strip() for segment in raw.split() if segment.strip()]
-    normalized: list[str] = []
-    seen: set[str] = set()
-
-    for candidate in candidates:
-        lowered = candidate.lower()
-        if lowered.startswith("http://") or lowered.startswith("https://"):
-            lowered = lowered.split("://", 1)[1]
-        lowered = lowered.split("/", 1)[0]
-        lowered = lowered.strip()
-        if not lowered:
-            continue
-        if lowered in seen:
-            continue
-        normalized.append(lowered)
-        seen.add(lowered)
-
-    if not normalized:
-        normalized.append(DEFAULT_SITE_DOMAIN)
-
-    return normalized
-
-
 def normalize_site_domain(value: str | None) -> str:
-    return " ".join(_normalize_site_domain_values(value))
-
-
-def split_site_domain_values(value: str | None) -> list[str]:
-    return _normalize_site_domain_values(value)
-
-
-def normalize_single_domain(value: str | None) -> str:
-    values = _normalize_site_domain_values(value)
-    return values[0] if values else DEFAULT_SITE_DOMAIN
-
-
-def get_primary_site_domain(value: str | None) -> str:
-    domains = split_site_domain_values(value)
-    return domains[0] if domains else DEFAULT_SITE_DOMAIN
+    raw = (value or "").strip().lower()
+    if not raw:
+        return DEFAULT_SITE_DOMAIN
+    if raw.startswith("http://") or raw.startswith("https://"):
+        raw = raw.split("://", 1)[1]
+    raw = raw.split("/", 1)[0]
+    return raw or DEFAULT_SITE_DOMAIN
 
 
 def normalize_short_link_path(value: str | None) -> str:
@@ -88,16 +52,15 @@ def normalize_short_link_path(value: str | None) -> str:
 def resolve_short_link_hosts(settings: SiteSettings) -> set[str]:
     """Return hostnames that should trigger short link lookups."""
 
-    hosts: set[str] = set()
-    for domain in split_site_domain_values(settings.site_domain):
-        canonical = domain.strip().lower()
-        if not canonical:
-            continue
-        hosts.add(canonical)
-        if canonical.startswith("www."):
-            hosts.add(canonical[4:])
-        else:
-            hosts.add(f"www.{canonical}")
+    canonical = (settings.site_domain or "").strip().lower()
+    if not canonical:
+        return set()
+
+    hosts = {canonical}
+    if canonical.startswith("www."):
+        hosts.add(canonical[4:])
+    else:
+        hosts.add(f"www.{canonical}")
 
     return {host for host in hosts if host}
 
@@ -153,25 +116,10 @@ def ensure_default_settings() -> None:
         session.commit()
 
 
-def _ensure_settings_table(db: Session) -> None:
-    """Make sure the site settings table exists before selecting from it."""
-
-    bind = db.get_bind() or engine
-    # Restrict the create_all call to the site_settings table to avoid touching
-    # unrelated schema. If the table already exists SQLAlchemy simply ignores it.
-    Base.metadata.create_all(bind=bind, tables=[SiteSettings.__table__])
-
-
 def get_site_settings(db: Session) -> SiteSettings:
     """Fetch the single settings row, creating one with defaults if necessary."""
 
-    try:
-        settings = db.scalar(select(SiteSettings).order_by(SiteSettings.id).limit(1))
-    except (OperationalError, ProgrammingError):
-        db.rollback()
-        _ensure_settings_table(db)
-        settings = db.scalar(select(SiteSettings).order_by(SiteSettings.id).limit(1))
-
+    settings = db.scalar(select(SiteSettings).order_by(SiteSettings.id).limit(1))
     if settings is not None:
         return settings
 
@@ -209,68 +157,14 @@ def update_site_settings(
 def build_short_link_prefix(settings: SiteSettings) -> str:
     """Compose the short link prefix shown in the UI."""
 
-    domain = get_primary_site_domain(settings.site_domain).strip().strip("/")
-    return build_short_link_prefix_for_domain(settings, domain)
-
-
-def build_short_link_prefix_for_domain(settings: SiteSettings, domain: str | None) -> str:
-    """Compose the short link prefix for a specific managed domain."""
-
-    normalized_domain = normalize_single_domain(domain).strip().strip("/")
-    base_domain = normalized_domain or get_primary_site_domain(settings.site_domain)
-    base_domain = base_domain.strip().strip("/")
-    if not base_domain:
-        base_domain = DEFAULT_SITE_DOMAIN
-    base_url = f"https://{base_domain}".rstrip("/")
+    domain = settings.site_domain.strip().strip("/") or DEFAULT_SITE_DOMAIN
+    base_url = f"https://{domain}".rstrip("/")
     path = settings.short_link_path
     if not path.startswith("/"):
         path = f"/{path}"
     if path != "/" and not path.endswith("/"):
         path = f"{path}/"
     return f"{base_url}{path}"
-
-
-def build_short_link_ui_metadata(
-    settings: SiteSettings, domain: str | None
-) -> dict[str, str]:
-    """Return display metadata for a short link domain."""
-
-    normalized = normalize_single_domain(domain)
-    prefix = build_short_link_prefix_for_domain(settings, normalized)
-    display_prefix = prefix
-    for scheme in ("https://", "http://"):
-        if display_prefix.startswith(scheme):
-            display_prefix = display_prefix[len(scheme) :]
-            break
-    if display_prefix.startswith(normalized):
-        display_suffix = display_prefix[len(normalized) :]
-    else:
-        display_suffix = display_prefix
-    return {
-        "domain": normalized,
-        "prefix": prefix,
-        "display_prefix": display_prefix,
-        "display_suffix": display_suffix,
-    }
-
-
-def match_short_link_domain(host: str, settings: SiteSettings) -> str | None:
-    """Return the managed domain that matches a request host."""
-
-    normalized_host = (host or "").strip().lower()
-    if not normalized_host:
-        return None
-
-    managed = split_site_domain_values(settings.site_domain)
-    for domain in managed:
-        if normalized_host == domain:
-            return domain
-        if normalized_host == f"www.{domain}":
-            return domain
-        if domain.startswith("www.") and normalized_host == domain[4:]:
-            return domain
-
-    return None
 
 
 def extract_short_link(path: str, settings: SiteSettings) -> tuple[str, str] | None:

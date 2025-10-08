@@ -1,5 +1,4 @@
 from __future__ import annotations
-from starlette.requests import Request
 
 def test_protected_endpoints_require_basic_auth(client: "SimpleClient") -> None:
     response = client.get("/api/links")
@@ -32,27 +31,6 @@ def test_login_flow_success(client: "SimpleClient") -> None:
     assert response.status_code == 200
     assert "创建短链" in response.text
     assert "改密" in response.text
-
-    dashboard = client.get("/admin", follow_redirects=False)
-    assert dashboard.status_code == 200
-
-
-def test_login_form_without_python_multipart(
-    client: "SimpleClient", monkeypatch: "pytest.MonkeyPatch"
-) -> None:
-    async def _raising_form(self: Request):  # type: ignore[override]
-        raise AssertionError("python-multipart not installed")
-
-    monkeypatch.setattr(Request, "form", _raising_form)
-
-    response = client.post(
-        "/admin/login",
-        data={"username": "admin", "password": "admin"},
-        follow_redirects=False,
-    )
-
-    assert response.status_code == 303
-    assert response.headers["location"].startswith("/admin")
 
     dashboard = client.get("/admin", follow_redirects=False)
     assert dashboard.status_code == 200
