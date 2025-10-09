@@ -479,18 +479,21 @@
 
       .theme-footer {
         position: relative;
-        padding: 1.5rem 1.5rem 2.5rem;
+        padding: 1.5rem var(--theme-container-padding) 2.5rem;
         text-align: center;
         color: var(--theme-muted);
         font-size: 0.9rem;
         display: flex;
         justify-content: center;
         align-items: center;
+        margin: 0 auto;
+        width: min(100%, calc(var(--theme-container-max) + var(--theme-container-padding) * 2));
+        box-sizing: border-box;
       }
 
       .theme-footer__powered {
         position: absolute;
-        right: 1.5rem;
+        right: var(--theme-container-padding);
         top: 50%;
         transform: translateY(-50%);
         display: inline-flex;
@@ -517,9 +520,11 @@
         }
 
         .theme-footer__powered {
+          width: 100%;
           position: static;
           transform: none;
           white-space: normal;
+          text-align: center;
         }
       }
 
