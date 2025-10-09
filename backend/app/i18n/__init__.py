@@ -6,12 +6,13 @@ from typing import Any, Mapping
 
 from jinja2 import pass_context
 
-from . import zh_cn
+from . import en_us, zh_cn
 
 DEFAULT_LOCALE = "zh-CN"
 
 _LOCALE_MAP: dict[str, Mapping[str, Any]] = {
     "zh-CN": zh_cn.TRANSLATIONS,
+    "en-US": en_us.TRANSLATIONS,
 }
 
 
