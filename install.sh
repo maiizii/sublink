@@ -356,6 +356,18 @@ deploy_stack() {
 INFO
 }
 
+request_certificates() {
+  detect_compose
+  log_step "触发证书申请/续签"
+  if "${COMPOSE_BIN[@]}" -f "$INSTALL_DIR/docker-compose.yml" run --rm -e CERTBOT_ONESHOT=1 cert_automation; then
+    log_info "证书申请流程已完成"
+  else
+    local status=$?
+    log_error "证书申请流程执行失败 (exit=$status)，请检查 cert_automation 日志"
+    return "$status"
+  fi
+}
+
 stop_stack() {
   detect_compose
   "${COMPOSE_BIN[@]}" -f "$INSTALL_DIR/docker-compose.yml" down
@@ -406,8 +418,9 @@ menu() {
   5) 查看运行状态
   6) 完全卸载
   7) 重启服务
+  8) 申请/续签 TLS 证书
 MENU
-  read -r -p "请输入选项 [1-7]：" choice || true
+  read -r -p "请输入选项 [1-8]：" choice || true
   case "$choice" in
     1)
       ensure_packages
@@ -443,6 +456,13 @@ MENU
       ;;
     7)
       restart_stack
+      ;;
+    8)
+      ensure_packages
+      install_docker
+      ensure_repo
+      prepare_env reuse
+      request_certificates
       ;;
     *)
       log_warn "无效选项"

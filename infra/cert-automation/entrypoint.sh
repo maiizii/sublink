@@ -49,30 +49,26 @@ else
     CERTBOT_EAB_OPTIONS=""
 fi
 
-while true; do
+run_cycle() {
     if ! python3 /app/fetch_domains.py > /tmp/certbot.domains 2>/tmp/certbot.domains.log; then
         status=$?
         if [ "$status" = "10" ]; then
-            echo "[cert-automation] 数据库暂未就绪，等待 10 秒后重试" >&2
-            sleep 10
-            continue
+            echo "[cert-automation] 数据库暂未就绪，稍后将重试" >&2
+            return 10
         fi
         if [ "$status" = "12" ]; then
-            echo "[cert-automation] 尚未配置任何有效域名，等待 60 秒后重试" >&2
+            echo "[cert-automation] 尚未配置任何有效域名" >&2
             cat /tmp/certbot.domains.log >&2 || true
-            sleep 60
-            continue
+            return 12
         fi
         echo "[cert-automation] 获取域名列表失败 (exit=$status)：" >&2
         cat /tmp/certbot.domains.log >&2 || true
-        sleep 60
-        continue
+        return 70
     fi
 
     if [ ! -s /tmp/certbot.domains ]; then
-        echo "[cert-automation] 域名列表为空，60 秒后重试" >&2
-        sleep 60
-        continue
+        echo "[cert-automation] 域名列表为空" >&2
+        return 12
     fi
 
     mode="unchanged"
@@ -123,25 +119,60 @@ while true; do
             mv /tmp/certbot.domains "$DOMAINS_CACHE"
             echo "[cert-automation] 证书已成功签发/更新" >&2
             set +f
-        else
-            echo "[cert-automation] 证书申请失败" >&2
-            set +f
-            sleep 60
-            continue
+            return 0
         fi
-    else
-        if ! certbot renew \
-            --non-interactive \
-            --deploy-hook "$DEPLOY_HOOK" \
-            --dns-cloudflare \
-            --dns-cloudflare-credentials "$CREDENTIALS_PATH" \
-            --dns-cloudflare-propagation-seconds "$PROPAGATION_WAIT" \
-            --no-random-sleep-on-renew \
-            --cert-name "$CERT_NAME" \
-            --keep-until-expiring >/tmp/certbot.renew.log 2>&1; then
-            cat /tmp/certbot.renew.log >&2
-        fi
+
+        echo "[cert-automation] 证书申请失败" >&2
+        set +f
+        return 70
     fi
 
-    sleep "$CHECK_INTERVAL"
+    if ! certbot renew \
+        --non-interactive \
+        --deploy-hook "$DEPLOY_HOOK" \
+        --dns-cloudflare \
+        --dns-cloudflare-credentials "$CREDENTIALS_PATH" \
+        --dns-cloudflare-propagation-seconds "$PROPAGATION_WAIT" \
+        --no-random-sleep-on-renew \
+        --cert-name "$CERT_NAME" \
+        --keep-until-expiring >/tmp/certbot.renew.log 2>&1; then
+        cat /tmp/certbot.renew.log >&2
+    fi
+
+    return 0
+}
+
+if [ "${CERTBOT_ONESHOT:-0}" = "1" ]; then
+    if run_cycle; then
+        exit 0
+    else
+        status=$?
+        exit "$status"
+    fi
+fi
+
+while true; do
+    if run_cycle; then
+        status=0
+    else
+        status=$?
+    fi
+
+    case "$status" in
+        0)
+            sleep "$CHECK_INTERVAL"
+            ;;
+        10)
+            sleep 10
+            ;;
+        12)
+            sleep 60
+            ;;
+        70)
+            sleep 60
+            ;;
+        *)
+            sleep 60
+            ;;
+    esac
 done
