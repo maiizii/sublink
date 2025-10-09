@@ -662,7 +662,7 @@ async def update_site_settings_endpoint(
     short_link_prefix = build_short_link_prefix(settings)
     hx_request = request.headers.get("hx-request") == "true"
     if hx_request:
-    feedback_html = _feedback_html(_t("admin.feedback.settingsSaved"), tone="success")
+        feedback_html = _feedback_html(_t("admin.feedback.settingsSaved"), tone="success")
         template = admin_templates.get_template("admin/partials/settings_card.html")
         content = template.render(
             {
