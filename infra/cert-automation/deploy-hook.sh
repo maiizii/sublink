@@ -18,6 +18,10 @@ if [ ! -f "$FULLCHAIN" ] || [ ! -f "$PRIVKEY" ]; then
 fi
 
 mkdir -p "$TARGET_DIR"
+
+# Ensure existing targets (including self-referencing symlinks) won't break copy
+rm -f "$TARGET_DIR/fullchain.cer" "$TARGET_DIR/private.key"
+
 cp "$FULLCHAIN" "$TARGET_DIR/fullchain.cer"
 cp "$PRIVKEY" "$TARGET_DIR/private.key"
 chmod 600 "$TARGET_DIR/private.key"
