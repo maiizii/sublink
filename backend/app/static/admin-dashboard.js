@@ -75,6 +75,21 @@
     if (srOnly) {
       srOnly.textContent = ariaLabel;
     }
+
+    if (toggle.tagName && toggle.tagName.toLowerCase() === "a") {
+      try {
+        const url = new URL(window.location.href);
+        url.searchParams.set("lang", nextLocale);
+        toggle.setAttribute("href", url.toString());
+      } catch (error) {
+        const current = window.location.href || "";
+        const separator = current.includes("?") ? "&" : "?";
+        toggle.setAttribute(
+          "href",
+          `${current}${separator}lang=${encodeURIComponent(nextLocale)}`
+        );
+      }
+    }
   }
 
   function bindLocaleToggle() {
