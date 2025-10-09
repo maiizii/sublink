@@ -13,6 +13,8 @@ TRANSLATIONS = {
             "themeSwitchLabel": "主题切换",
             "toggleLight": "切换到亮色主题",
             "toggleDark": "切换到暗色主题",
+            "toggleToEnglish": "切换到英文",
+            "toggleToChinese": "切换到简体中文",
             "changePasswordAria": "修改密码",
             "changePasswordShort": "改密",
             "logoutAria": "退出登录",
@@ -214,6 +216,8 @@ TRANSLATIONS = {
             "requestError": "请求失败，请稍后再试",
             "themeToggleLight": "切换到亮色主题",
             "themeToggleDark": "切换到暗色主题",
+            "languageToggleEnglish": "切换到英文",
+            "languageToggleChinese": "切换到简体中文",
             "fallbackNotices": [
                 "htmx 未加载，使用回退逻辑处理管理后台交互。",
                 "htmx 未加载，使用回退逻辑处理短链子域管理后台交互。",

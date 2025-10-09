@@ -852,7 +852,7 @@ async def update_short_link(
     hx_request = request.headers.get("hx-request") == "true"
     if hx_request:
         message = _feedback_html(_t("admin.api.feedback.shortLinkUpdated"), tone="success")
-        context, _ = _admin_context_with_settings(request, db, current_user)
+        context, _, _ = _admin_context_with_settings(request, db, current_user)
         context.update(
             {
                 "item": short_link,
@@ -1405,7 +1405,7 @@ async def update_subdomain(
     hx_request = request.headers.get("hx-request") == "true"
     if hx_request:
         message = _feedback_html(_t("admin.api.feedback.subdomainUpdated"), tone="success")
-        context, _ = _admin_context_with_settings(request, db, current_user)
+        context, _, _ = _admin_context_with_settings(request, db, current_user)
         context.update(
             {
                 "item": redirect,

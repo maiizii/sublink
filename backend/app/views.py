@@ -39,6 +39,20 @@ from .i18n import DEFAULT_LOCALE, jinja_namespace, jinja_translate, translate
 
 SUBDOMAIN_CODE_OPTIONS = [302, 301]
 
+SUPPORTED_LOCALES = {"zh-CN", "en-US"}
+_CANONICAL_LOCALES = {code.lower(): code for code in SUPPORTED_LOCALES}
+_LOCALE_ALIASES = {
+    "zh": "zh-CN",
+    "zh-cn": "zh-CN",
+    "zh-hans": "zh-CN",
+    "zh_hans": "zh-CN",
+    "en": "en-US",
+    "en-us": "en-US",
+    "en_us": "en-US",
+}
+LOCALE_COOKIE_NAME = "sublink-admin-locale"
+LOCALE_COOKIE_MAX_AGE = 60 * 60 * 24 * 365
+
 TEMPLATE_DIR = Path(__file__).resolve().parent / "templates"
 
 templates = Jinja2Templates(directory=str(TEMPLATE_DIR))
@@ -56,6 +70,63 @@ def _safe_redirect_target(target: str | None) -> str:
     if not target.startswith("/"):
         return "/admin"
     return target
+
+
+def _normalize_locale(value: str | None) -> str | None:
+    if not value:
+        return None
+    raw = value.strip()
+    if not raw:
+        return None
+    lowered = raw.lower().replace("_", "-")
+    if lowered in _LOCALE_ALIASES:
+        return _LOCALE_ALIASES[lowered]
+    if lowered in _CANONICAL_LOCALES:
+        return _CANONICAL_LOCALES[lowered]
+    if raw in SUPPORTED_LOCALES:
+        return raw
+    return None
+
+
+def _resolve_locale(request: Request) -> tuple[str, bool]:
+    requested = _normalize_locale(request.query_params.get("lang"))
+    if requested:
+        return requested, True
+    from_cookie = _normalize_locale(request.cookies.get(LOCALE_COOKIE_NAME))
+    if from_cookie:
+        return from_cookie, False
+    return DEFAULT_LOCALE, True
+
+
+def _render_template(
+    template_name: str,
+    context: dict[str, Any],
+    *,
+    status_code: int | None = None,
+    locale_state: tuple[str, bool] | None = None,
+) -> HTMLResponse:
+    if status_code is None:
+        response = templates.TemplateResponse(
+            template_name,
+            context,
+        )
+    else:
+        response = templates.TemplateResponse(
+            template_name,
+            context,
+            status_code=status_code,
+        )
+    if locale_state:
+        locale_value, should_set_cookie = locale_state
+        if should_set_cookie:
+            response.set_cookie(
+                LOCALE_COOKIE_NAME,
+                locale_value,
+                max_age=LOCALE_COOKIE_MAX_AGE,
+                samesite="lax",
+                path="/",
+            )
+    return response
 
 
 def _load_short_links(db: Session, user: User) -> list[ShortLink]:
@@ -106,7 +177,11 @@ def _generate_short_link_suggestion(db: Session, length: int, domain: str) -> st
 
 
 def _base_context(
-    request: Request, settings: SiteSettings, user: User | None = None
+    request: Request,
+    settings: SiteSettings,
+    user: User | None = None,
+    *,
+    locale: str = DEFAULT_LOCALE,
 ) -> dict[str, Any]:
     managed_domains = get_managed_domains(settings)
     primary_domain = get_primary_domain(settings)
@@ -146,16 +221,22 @@ def _base_context(
         "settings_feedback_html": None,
         "show_logout_button": True,
         "current_user": user,
-        "locale": DEFAULT_LOCALE,
+        "locale": locale,
     }
 
 
 def _context_with_settings(
-    request: Request, db: Session, user: User | None = None
-) -> tuple[dict[str, Any], SiteSettings]:
+    request: Request,
+    db: Session,
+    user: User | None = None,
+    *,
+    locale_state: tuple[str, bool] | None = None,
+) -> tuple[dict[str, Any], SiteSettings, tuple[str, bool]]:
     settings = get_site_settings(db)
-    context = _base_context(request, settings, user)
-    return context, settings
+    resolved_locale = locale_state or _resolve_locale(request)
+    locale_value, _ = resolved_locale
+    context = _base_context(request, settings, user, locale=locale_value)
+    return context, settings, resolved_locale
 
 
 def _ensure_link_access(short_link: ShortLink, user: User) -> None:
@@ -197,7 +278,9 @@ def admin_dashboard(
     users: list[User] = _load_users(db) if current_user.is_admin else []
     blacklist_entries = _load_subdomain_blacklist(db) if current_user.is_admin else []
 
-    context, settings = _context_with_settings(request, db, current_user)
+    context, settings, locale_state = _context_with_settings(
+        request, db, current_user
+    )
     managed_domains = context.get("managed_domains", [])
     primary_domain = context.get("primary_domain", settings.site_domain)
     context.update(
@@ -224,7 +307,11 @@ def admin_dashboard(
                 f"{translate('admin.feedback.settingsSaved', locale=context.get('locale'))}"
                 "</div>"
             )
-    return templates.TemplateResponse("admin/index.html", context)
+    return _render_template(
+        "admin/index.html",
+        context,
+        locale_state=locale_state,
+    )
 
 
 @router.get("/admin/logout", response_class=HTMLResponse)
@@ -251,7 +338,7 @@ def admin_login_page(
         target = _safe_redirect_target(redirect_to)
         return RedirectResponse(target, status_code=status.HTTP_303_SEE_OTHER)
 
-    context, _ = _context_with_settings(request, db)
+    context, _, locale_state = _context_with_settings(request, db)
     context.update(
         {
             "show_logout_button": False,
@@ -260,7 +347,11 @@ def admin_login_page(
             "username_value": "",
         }
     )
-    return templates.TemplateResponse("admin/login.html", context)
+    return _render_template(
+        "admin/login.html",
+        context,
+        locale_state=locale_state,
+    )
 
 
 @router.post("/admin/login", response_class=HTMLResponse)
@@ -276,8 +367,10 @@ async def admin_login_submit(
     password = form.get("password") or ""
 
     error: str | None = None
+    locale_state = _resolve_locale(request)
+    current_locale, _ = locale_state
     if not username or not password:
-        error = translate("admin.login.errorRequired")
+        error = translate("admin.login.errorRequired", locale=current_locale)
     else:
         ok, reason, user = validate_credentials(username, password, db)
         if ok and user is not None:
@@ -286,13 +379,15 @@ async def admin_login_submit(
             establish_session(response, request, user)
             return response
         if reason == "username":
-            error = translate("admin.login.errorUsername")
+            error = translate("admin.login.errorUsername", locale=current_locale)
         elif reason == "password":
-            error = translate("admin.login.errorPassword")
+            error = translate("admin.login.errorPassword", locale=current_locale)
         else:
-            error = translate("admin.login.errorGeneric")
+            error = translate("admin.login.errorGeneric", locale=current_locale)
 
-    context, _ = _context_with_settings(request, db)
+    context, _, locale_state = _context_with_settings(
+        request, db, locale_state=locale_state
+    )
     context.update(
         {
             "show_logout_button": False,
@@ -302,10 +397,11 @@ async def admin_login_submit(
         }
     )
     status_code = status.HTTP_400_BAD_REQUEST if error else status.HTTP_200_OK
-    return templates.TemplateResponse(
+    return _render_template(
         "admin/login.html",
         context,
         status_code=status_code,
+        locale_state=locale_state,
     )
 
 
@@ -321,9 +417,13 @@ def short_link_count(
     """Return a small fragment containing the current short link count."""
 
     short_links = _load_short_links(db, current_user)
-    context, _ = _context_with_settings(request, db, current_user)
+    context, _, locale_state = _context_with_settings(request, db, current_user)
     context.update({"count": len(short_links)})
-    return templates.TemplateResponse("admin/partials/link_count.html", context)
+    return _render_template(
+        "admin/partials/link_count.html",
+        context,
+        locale_state=locale_state,
+    )
 
 
 @router.get(
@@ -338,9 +438,13 @@ def short_link_table(
     """Return the short link table fragment for HTMX swaps."""
 
     short_links = _load_short_links(db, current_user)
-    context, _ = _context_with_settings(request, db, current_user)
+    context, _, locale_state = _context_with_settings(request, db, current_user)
     context.update({"short_links": short_links, "show_user_column": current_user.is_admin})
-    return templates.TemplateResponse("admin/partials/link_table.html", context)
+    return _render_template(
+        "admin/partials/link_table.html",
+        context,
+        locale_state=locale_state,
+    )
 
 
 @router.get(
@@ -363,9 +467,13 @@ def short_link_row(
         )
     _ensure_link_access(short_link, current_user)
 
-    context, _ = _context_with_settings(request, db, current_user)
+    context, _, locale_state = _context_with_settings(request, db, current_user)
     context.update({"item": short_link, "show_user_column": current_user.is_admin})
-    return templates.TemplateResponse("admin/partials/link_row.html", context)
+    return _render_template(
+        "admin/partials/link_row.html",
+        context,
+        locale_state=locale_state,
+    )
 
 
 @router.get(
@@ -388,9 +496,13 @@ def short_link_edit_row(
         )
     _ensure_link_access(short_link, current_user)
 
-    context, _ = _context_with_settings(request, db, current_user)
+    context, _, locale_state = _context_with_settings(request, db, current_user)
     context.update({"item": short_link, "show_user_column": current_user.is_admin})
-    return templates.TemplateResponse("admin/partials/link_edit_row.html", context)
+    return _render_template(
+        "admin/partials/link_edit_row.html",
+        context,
+        locale_state=locale_state,
+    )
 
 
 @router.get(
@@ -405,9 +517,13 @@ def subdomain_count(
     """Return the current subdomain redirect count fragment."""
 
     subdomains = _load_subdomains(db, current_user)
-    context, _ = _context_with_settings(request, db, current_user)
+    context, _, locale_state = _context_with_settings(request, db, current_user)
     context.update({"count": len(subdomains)})
-    return templates.TemplateResponse("admin/partials/subdomain_count.html", context)
+    return _render_template(
+        "admin/partials/subdomain_count.html",
+        context,
+        locale_state=locale_state,
+    )
 
 
 @router.get(
@@ -422,9 +538,13 @@ def subdomain_table(
     """Return the subdomain table fragment for HTMX swaps."""
 
     subdomains = _load_subdomains(db, current_user)
-    context, _ = _context_with_settings(request, db, current_user)
+    context, _, locale_state = _context_with_settings(request, db, current_user)
     context.update({"subdomains": subdomains, "show_user_column": current_user.is_admin})
-    return templates.TemplateResponse("admin/partials/subdomain_table.html", context)
+    return _render_template(
+        "admin/partials/subdomain_table.html",
+        context,
+        locale_state=locale_state,
+    )
 
 
 @router.get(
@@ -439,10 +559,12 @@ def subdomain_blacklist_table(
     """返回子域屏蔽名单表格片段。"""
 
     entries = _load_subdomain_blacklist(db)
-    context, _ = _context_with_settings(request, db, admin)
+    context, _, locale_state = _context_with_settings(request, db, admin)
     context.update({"subdomain_blacklist": entries})
-    return templates.TemplateResponse(
-        "admin/partials/subdomain_blacklist_table.html", context
+    return _render_template(
+        "admin/partials/subdomain_blacklist_table.html",
+        context,
+        locale_state=locale_state,
     )
 
 
@@ -466,9 +588,13 @@ def subdomain_row(
         )
     _ensure_subdomain_access(redirect, current_user)
 
-    context, _ = _context_with_settings(request, db, current_user)
+    context, _, locale_state = _context_with_settings(request, db, current_user)
     context.update({"item": redirect, "show_user_column": current_user.is_admin})
-    return templates.TemplateResponse("admin/partials/subdomain_row.html", context)
+    return _render_template(
+        "admin/partials/subdomain_row.html",
+        context,
+        locale_state=locale_state,
+    )
 
 
 @router.get(
@@ -491,7 +617,7 @@ def subdomain_edit_row(
         )
     _ensure_subdomain_access(redirect, current_user)
 
-    context, _ = _context_with_settings(request, db, current_user)
+    context, _, locale_state = _context_with_settings(request, db, current_user)
     context.update(
         {
             "item": redirect,
@@ -499,7 +625,11 @@ def subdomain_edit_row(
             "show_user_column": current_user.is_admin,
         }
     )
-    return templates.TemplateResponse("admin/partials/subdomain_edit_row.html", context)
+    return _render_template(
+        "admin/partials/subdomain_edit_row.html",
+        context,
+        locale_state=locale_state,
+    )
 
 
 @router.get(
@@ -514,9 +644,13 @@ def user_count(
     """Return the current user count fragment."""
 
     users = _load_users(db)
-    context, _ = _context_with_settings(request, db, admin)
+    context, _, locale_state = _context_with_settings(request, db, admin)
     context.update({"count": len(users)})
-    return templates.TemplateResponse("admin/partials/user_count.html", context)
+    return _render_template(
+        "admin/partials/user_count.html",
+        context,
+        locale_state=locale_state,
+    )
 
 
 @router.get(
@@ -531,9 +665,13 @@ def user_table(
     """Render the user management table."""
 
     users = _load_users(db)
-    context, _ = _context_with_settings(request, db, admin)
+    context, _, locale_state = _context_with_settings(request, db, admin)
     context.update({"users": users})
-    return templates.TemplateResponse("admin/partials/user_table.html", context)
+    return _render_template(
+        "admin/partials/user_table.html",
+        context,
+        locale_state=locale_state,
+    )
 
 
 @router.get(
@@ -555,9 +693,13 @@ def user_row(
             detail=translate("admin.errors.userMissing"),
         )
 
-    context, _ = _context_with_settings(request, db, admin)
+    context, _, locale_state = _context_with_settings(request, db, admin)
     context.update({"item": user})
-    return templates.TemplateResponse("admin/partials/user_row.html", context)
+    return _render_template(
+        "admin/partials/user_row.html",
+        context,
+        locale_state=locale_state,
+    )
 
 
 @router.get(
@@ -579,9 +721,13 @@ def user_edit_row(
             detail=translate("admin.errors.userMissing"),
         )
 
-    context, _ = _context_with_settings(request, db, admin)
+    context, _, locale_state = _context_with_settings(request, db, admin)
     context.update({"item": user})
-    return templates.TemplateResponse("admin/partials/user_edit_row.html", context)
+    return _render_template(
+        "admin/partials/user_edit_row.html",
+        context,
+        locale_state=locale_state,
+    )
 
 
 @router.get("/admin/password", response_class=HTMLResponse)
@@ -592,6 +738,10 @@ def password_page(
 ) -> HTMLResponse:
     """Render the password change form for the current user."""
 
-    context, _ = _context_with_settings(request, db, current_user)
+    context, _, locale_state = _context_with_settings(request, db, current_user)
     context.update({"show_logout_button": True})
-    return templates.TemplateResponse("admin/password.html", context)
+    return _render_template(
+        "admin/password.html",
+        context,
+        locale_state=locale_state,
+    )

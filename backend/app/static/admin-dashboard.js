@@ -2,6 +2,7 @@
   const THEME_STORAGE_KEY = "sublink-admin-theme";
   const AVAILABLE_THEMES = ["aurora", "nebula"];
   const DEFAULT_THEME = "aurora";
+  const DEFAULT_LOCALE = "zh-CN";
   const RANDOM_CODE_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
   const COPY_FEEDBACK_TIMEOUT = 2000;
   const ROW_RESTORE_CONFIG = [
@@ -22,12 +23,89 @@
     requestError: "Request failed, please try again later",
     themeToggleLight: "Switch to light theme",
     themeToggleDark: "Switch to dark theme",
+    languageToggleEnglish: "Switch to English",
+    languageToggleChinese: "Switch to Simplified Chinese",
     fallbackNotices: [],
   };
   const I18N = Object.assign({}, DEFAULT_I18N, window.SUBLINK_ADMIN_I18N || {});
   let storedThemeValue = null;
   let detailsOutsideHandlerBound = false;
   let detailsPanelId = 0;
+
+  function resolveCurrentLocale() {
+    const attr = document.documentElement.getAttribute("lang");
+    if (!attr || typeof attr !== "string") {
+      return DEFAULT_LOCALE;
+    }
+    return attr;
+  }
+
+  function getAlternateLocale(current) {
+    return current === "en-US" ? "zh-CN" : "en-US";
+  }
+
+  function getLocaleBadge(locale) {
+    return locale === "en-US" ? "EN" : "简";
+  }
+
+  function getLocaleAria(locale) {
+    return locale === "en-US"
+      ? I18N.languageToggleEnglish || DEFAULT_I18N.languageToggleEnglish
+      : I18N.languageToggleChinese || DEFAULT_I18N.languageToggleChinese;
+  }
+
+  function updateLocaleToggle(toggle) {
+    if (!toggle) {
+      return;
+    }
+
+    const currentLocale = resolveCurrentLocale();
+    const nextLocale = getAlternateLocale(currentLocale);
+    const ariaLabel = getLocaleAria(nextLocale);
+
+    toggle.setAttribute("data-next-locale", nextLocale);
+    toggle.setAttribute("aria-label", ariaLabel);
+
+    const label = toggle.querySelector("[data-locale-toggle-label]");
+    if (label) {
+      label.textContent = getLocaleBadge(nextLocale);
+    }
+
+    const srOnly = toggle.querySelector("[data-locale-toggle-sr]");
+    if (srOnly) {
+      srOnly.textContent = ariaLabel;
+    }
+  }
+
+  function bindLocaleToggle() {
+    const toggle = document.querySelector("[data-locale-toggle]");
+
+    if (!toggle) {
+      return;
+    }
+
+    if (toggle.dataset.localeToggleBound === "true") {
+      updateLocaleToggle(toggle);
+      return;
+    }
+
+    toggle.dataset.localeToggleBound = "true";
+    updateLocaleToggle(toggle);
+
+    toggle.addEventListener("click", (event) => {
+      event.preventDefault();
+      const nextLocale = toggle.getAttribute("data-next-locale") || "en-US";
+      try {
+        const url = new URL(window.location.href);
+        url.searchParams.set("lang", nextLocale);
+        window.location.assign(url.toString());
+      } catch (error) {
+        const current = window.location.href || "";
+        const separator = current.includes("?") ? "&" : "?";
+        window.location.assign(`${current}${separator}lang=${encodeURIComponent(nextLocale)}`);
+      }
+    });
+  }
 
   function onReady(callback) {
     if (document.readyState === "loading") {
@@ -1171,6 +1249,7 @@
     bindShortLinkDomainSelectors(root);
     bindCopyButtons(root);
     bindDetailsToggles(root);
+    bindLocaleToggle();
   }
 
   onReady(() => {
@@ -1207,6 +1286,7 @@
     bindThemeToggles();
     bindMobileThemeToggle();
     bindThemeGallery();
+    bindLocaleToggle();
     enhanceDynamicUI();
 
     const refreshUsersHandler = () => refreshUsers();

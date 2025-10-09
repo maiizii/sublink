@@ -295,6 +295,18 @@
         fill: none;
       }
 
+      .language-toggle {
+        font-size: 0.75rem;
+        font-weight: 600;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        line-height: 1;
+      }
+
+      .language-toggle span[aria-hidden="true"] {
+        pointer-events: none;
+      }
+
       .theme-toggle:hover,
       .theme-toggle:focus-visible {
         background: rgba(255, 255, 255, 0.18);
@@ -2521,6 +2533,17 @@
                     </svg>
                   </button>
                 </div>
+                {% set is_chinese_locale = locale == 'zh-CN' %}
+                <button
+                  type="button"
+                  class="theme-toggle language-toggle"
+                  data-locale-toggle
+                  data-next-locale="{{ 'en-US' if is_chinese_locale else 'zh-CN' }}"
+                  aria-label="{{ _('admin.hero.toggleToEnglish') if is_chinese_locale else _('admin.hero.toggleToChinese') }}"
+                >
+                  <span aria-hidden="true" data-locale-toggle-label>{{ 'EN' if is_chinese_locale else '简' }}</span>
+                  <span class="sr-only" data-locale-toggle-sr>{{ _('admin.hero.toggleToEnglish') if is_chinese_locale else _('admin.hero.toggleToChinese') }}</span>
+                </button>
                 {% if show_logout_button %}
                 <a
                   class="theme-button theme-button--ghost theme-button--icon theme-button--password"
