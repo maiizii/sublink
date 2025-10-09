@@ -36,22 +36,9 @@ from .settings_service import (
 )
 from .subdomain_service import format_blacklist_labels
 from .i18n import DEFAULT_LOCALE, jinja_namespace, jinja_translate, translate
+from .locale import resolve_locale_from_request
 
 SUBDOMAIN_CODE_OPTIONS = [302, 301]
-
-SUPPORTED_LOCALES = {"zh-CN", "en-US"}
-_CANONICAL_LOCALES = {code.lower(): code for code in SUPPORTED_LOCALES}
-_LOCALE_ALIASES = {
-    "zh": "zh-CN",
-    "zh-cn": "zh-CN",
-    "zh-hans": "zh-CN",
-    "zh_hans": "zh-CN",
-    "en": "en-US",
-    "en-us": "en-US",
-    "en_us": "en-US",
-}
-LOCALE_COOKIE_NAME = "sublink-admin-locale"
-LOCALE_COOKIE_MAX_AGE = 60 * 60 * 24 * 365
 
 TEMPLATE_DIR = Path(__file__).resolve().parent / "templates"
 
@@ -72,32 +59,6 @@ def _safe_redirect_target(target: str | None) -> str:
     return target
 
 
-def _normalize_locale(value: str | None) -> str | None:
-    if not value:
-        return None
-    raw = value.strip()
-    if not raw:
-        return None
-    lowered = raw.lower().replace("_", "-")
-    if lowered in _LOCALE_ALIASES:
-        return _LOCALE_ALIASES[lowered]
-    if lowered in _CANONICAL_LOCALES:
-        return _CANONICAL_LOCALES[lowered]
-    if raw in SUPPORTED_LOCALES:
-        return raw
-    return None
-
-
-def _resolve_locale(request: Request) -> tuple[str, bool]:
-    requested = _normalize_locale(request.query_params.get("lang"))
-    if requested:
-        return requested, True
-    from_cookie = _normalize_locale(request.cookies.get(LOCALE_COOKIE_NAME))
-    if from_cookie:
-        return from_cookie, False
-    return DEFAULT_LOCALE, True
-
-
 def _render_template(
     template_name: str,
     context: dict[str, Any],
@@ -116,16 +77,6 @@ def _render_template(
             context,
             status_code=status_code,
         )
-    if locale_state:
-        locale_value, should_set_cookie = locale_state
-        if should_set_cookie:
-            response.set_cookie(
-                LOCALE_COOKIE_NAME,
-                locale_value,
-                max_age=LOCALE_COOKIE_MAX_AGE,
-                samesite="lax",
-                path="/",
-            )
     return response
 
 
@@ -233,8 +184,17 @@ def _context_with_settings(
     locale_state: tuple[str, bool] | None = None,
 ) -> tuple[dict[str, Any], SiteSettings, tuple[str, bool]]:
     settings = get_site_settings(db)
-    resolved_locale = locale_state or _resolve_locale(request)
-    locale_value, _ = resolved_locale
+    if locale_state is None:
+        locale_value = getattr(request.state, "locale", None)
+        should_set_cookie = getattr(
+            request.state, "locale_should_set_cookie", False
+        )
+        if not isinstance(locale_value, str) or not locale_value:
+            locale_value, should_set_cookie = resolve_locale_from_request(request)
+        resolved_locale = (locale_value, should_set_cookie)
+    else:
+        resolved_locale = locale_state
+        locale_value, _ = resolved_locale
     context = _base_context(request, settings, user, locale=locale_value)
     return context, settings, resolved_locale
 
@@ -367,7 +327,7 @@ async def admin_login_submit(
     password = form.get("password") or ""
 
     error: str | None = None
-    locale_state = _resolve_locale(request)
+    locale_state = resolve_locale_from_request(request)
     current_locale, _ = locale_state
     if not username or not password:
         error = translate("admin.login.errorRequired", locale=current_locale)

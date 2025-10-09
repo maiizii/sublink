@@ -6,7 +6,8 @@ from typing import Any
 
 from pydantic import BaseModel, Field, ValidationInfo, field_validator
 
-from .i18n import DEFAULT_LOCALE, translate
+from .i18n import translate
+from .locale import get_current_locale
 from .models import DEFAULT_ICON_URL, DEFAULT_LOGO_URL
 from .settings_service import (
     normalize_asset_url,
@@ -19,7 +20,7 @@ from .validators import normalize_slug
 
 
 def _t(key: str, **params: Any) -> str:
-    return translate(key, locale=DEFAULT_LOCALE, **params)
+    return translate(key, locale=get_current_locale(), **params)
 
 
 class SubdomainRedirectBase(BaseModel):
