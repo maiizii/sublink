@@ -1541,7 +1541,11 @@ def catch_all(
         )
         return RedirectResponse(destination, status_code=redirect.code)
 
-    if fallback_domain == host and not path.strip("/"):
-        return PlainTextResponse("Not Found", status_code=status.HTTP_404_NOT_FOUND)
+    if not path.strip("/"):
+        if host == primary_domain or host == f"www.{primary_domain}":
+            admin_url = f"{fallback_url.rstrip('/')}" + "/admin"
+            return RedirectResponse(admin_url, status_code=status.HTTP_302_FOUND)
+        if allow_short_link:
+            return PlainTextResponse("Not Found", status_code=status.HTTP_404_NOT_FOUND)
 
     return RedirectResponse(fallback_url, status_code=status.HTTP_302_FOUND)

@@ -7,7 +7,7 @@ SubLink 是 yet.la 等多域名的自托管短链与子域跳转管理平台，�
 
 > Open Source Short-Link & Domain Routing System
 
-> 当前版本：**v1.10.9** —— 管理后台现已内置中英文切换，配套文档同步更新，方便全球团队协同维护短链与子域跳转。
+> 当前版本：**v1.10.9.2** —— 一键脚本新增循环菜单与版本横幅，主域根路径访问自动重定向至 `/admin`，便于日常运维。
 
 ## 界面预览
 
@@ -26,10 +26,9 @@ SubLink 是 yet.la 等多域名的自托管短链与子域跳转管理平台，�
 - [本仓库包含什么？](#本仓库包含什么)
 - [前置条件](#前置条件)
 - [快速开始](#快速开始)
-- [一键命令](#一键命令)
+- [常用命令](#常用命令)
 - [验收脚本](#验收脚本)
 - [HTTPS 入口与冒烟验证](#https-入口与冒烟验证)
-- [安装与部署指南](#安装与部署指南)
 - [证书与 Nginx 配置](#证书与-nginx-配置)
 - [Cloudflare 设置](#cloudflare-设置)
 - [部署完成后的使用方式](#部署完成后的使用方式)
@@ -78,66 +77,76 @@ SubLink 是 yet.la 等多域名的自托管短链与子域跳转管理平台，�
 
 ## 快速开始
 
-```bash
-# 全自动一键部署（推荐）
-bash <(curl -Ls "https://raw.githubusercontent.com/maiizii/sublink/main/install.sh")
+### 一键部署
 
-# 或手动部署（需先准备 Docker / docker compose）
-git clone git@github.com:your-org/sublink.git
-cd sublink
-cp .env.example .env && vi .env
-docker compose up -d --build
-```
-
-> 若希望在运行过程中查看可选参数、更新流程，请参考下方的 [一键部署脚本](#一键部署脚本) 章节。
-
-Nginx 默认监听 `80/443`，HTTP 请求统一 301 跳转至 HTTPS 并转发至后端 `backend:8000`。
-
-启动完成后，可使用默认管理员账号 `admin/admin` 登录 `https://<你的域名>/admin`，并在「设置」页更新基础域名、管理域名列表、短链默认长度、路径前缀以及 Logo/Icon。所有配置会持久化到数据库，后续无需维护额外的 `.env` 文件。
-
-## 一键部署脚本
-
-针对全新 Ubuntu 20.04/22.04 服务器，提供 `install.sh` 一键脚本，可直接在目标机器执行：
+适用于全新 Ubuntu 20.04/22.04 主机。命令需包含 `main` 分支名称（`raw.githubusercontent.com` 必须指定分支路径）。
 
 ```bash
 bash <(curl -Ls "https://raw.githubusercontent.com/maiizii/sublink/main/install.sh")
 ```
 
-脚本会在屏幕上逐步提示输入，确保“小白”也能完成部署：
+脚本会：
 
-1. **系统自检**：要求 root/sudo 权限，自动检测 `apt`、`docker`、`docker compose`，缺少时会安装并启动 Docker 服务。
-2. **仓库获取**：默认将项目克隆至 `/opt/sublink`（可通过环境变量 `SUBLINK_HOME` 自定义），并保持与 `main` 分支同步。
-3. **参数填写**：逐项提示：
-   - `BASE_DOMAIN`（必填，可输入多个域名，支持空格/逗号分隔）；
-   - `CF_DNS_API_TOKEN`（必填，隐藏输入）；
-   - `ACME_ACCOUNT_EMAIL`（可选，直接回车跳过）；
-   - 管理员账号/密码（回车使用 `admin` / `changeme`）。
-4. **自动部署**：创建数据目录、执行 `docker compose pull` + `up -d --build`、写入 systemd 服务（`sublink.service`），并展示后台入口与常见命令。
+1. 检查并安装 `curl`、`git`、`docker`、`docker compose` 等依赖；
+2. 克隆或更新仓库（默认路径 `/opt/sublink`，可通过 `SUBLINK_HOME` 覆盖）并保持与目标分支同步；
+3. 引导填写 `BASE_DOMAIN`、`CF_DNS_API_TOKEN`、`ACME_ACCOUNT_EMAIL` 及管理员账号密码，并自动清理 Cloudflare Token 输入中的换行符；
+4. 执行 `docker compose up -d --build`、注册 `sublink.service` 并在完成后展示后台入口与常用命令。
 
-首次安装完成后，再次执行同一命令会检测到既有环境并给出操作菜单：
+首次安装完成后再次执行脚本，会展示循环维护菜单：
 
 ```
-1) 更新代码并重新部署
-2) 仅重新部署（不更新代码）
-3) 停止服务
-4) 启动服务
-5) 查看运行状态
-6) 完全卸载
+1 更新代码并重新部署
+2 仅重新部署（不更新代码）
+3 停止服务
+4 启动服务
+5 重启服务
+6 查看运行状态
+7 申请/续签 TLS 证书
+8 卸载 SubLink
+0 退出
 ```
 
-- 选择 `1` 会 `git pull` 最新代码、重新收集参数并重启；
-- 选择 `2` 会沿用当前代码，仅根据 `.env` 重启；
-- `3/4/5` 用于常规停启、查看状态；
-- `6` 将停掉容器、删除 systemd 服务及 `/opt/sublink` 目录（需输入 `yes` 确认）。
+任意操作结束后会返回菜单提示，方便继续执行其他维护动作。
 
-> **注意事项**
->
-> - 脚本默认支持 Ubuntu 20.04/22.04，依赖 `apt` 与 systemd；其他发行版可参考脚本内容进行调整。
-> - 如需自定义安装目录或分支，可在执行前设置变量：`SUBLINK_HOME=/data/sublink SUBLINK_BRANCH=release bash <(curl -Ls ... )`。
-> - 完成安装后，可随时手动编辑 `/opt/sublink/.env`，然后重新运行脚本选择 `2` 即可应用新配置。
-> - 如曾执行旧版本脚本导致 `/etc/apt/sources.list.d/docker.list` 配置异常，可删除该文件后重新运行安装命令：`sudo rm -f /etc/apt/sources.list.d/docker.list`。新版脚本会自动检测并清理异常配置，无需额外操作。
+### 手动部署
 
-## 一键命令
+如需完全掌控安装过程，可按以下步骤操作：
+
+1. 更新系统并安装 Git：
+   ```bash
+   sudo apt-get update
+   sudo apt-get install -y git
+   ```
+2. 克隆仓库并进入目录：
+   ```bash
+   git clone https://github.com/maiizii/sublink.git
+   cd sublink
+   ```
+3. 安装 Docker 与 Compose（可执行 `sudo ./scripts/setup-ubuntu.sh` 或参考脚本内容手动安装），并确保当前用户加入 `docker` 组：
+   ```bash
+   sudo ./scripts/setup-ubuntu.sh
+   newgrp docker
+   ```
+4. 初始化配置：
+   ```bash
+   cp .env.example .env
+   vi .env   # 填写 BASE_DOMAIN、CF_DNS_API_TOKEN、ACME_ACCOUNT_EMAIL 等参数
+   mkdir -p data
+   chmod 700 data
+   ```
+5. 构建并启动服务：
+   ```bash
+   docker compose up -d --build
+   ```
+6. 验证容器与健康检查：
+   ```bash
+   docker compose ps
+   curl -sk https://<你的域名>/healthz
+   ```
+
+完成后可使用默认管理员账号 `admin/admin` 登录 `https://<你的域名>/admin`。直接访问主域根路径（如 `https://yet.la`）会自动重定向到 `/admin`，便于立即进入后台管理。所有配置变更都会持久化到数据库，后续无需重复编辑 `.env`。
+
+## 常用命令
 
 项目根目录提供 `Makefile`，封装常用的 Compose 操作：
 
@@ -208,55 +217,6 @@ curl -sk -u admin:admin \
   -d '{"host":"foo.yet.la","target_url":"https://example.com","code":302}' \
   https://yet.la/api/subdomains
 ```
-
-## 安装与部署指南
-
-以下步骤在一台全新 Ubuntu 22.04 VPS 上验证通过，可按需调整：
-
-1. **更新软件源并安装 Git（如系统自带可跳过）**
-   ```bash
-   sudo apt-get update
-   sudo apt-get install -y git
-   ```
-2. **克隆仓库并进入项目目录**
-   ```bash
-   git clone https://github.com/your-org/sublink.git
-   cd sublink
-   ```
-3. **安装运行依赖（Docker、Docker Compose 插件）**
-   - 推荐执行仓库脚本：
-     ```bash
-     sudo ./scripts/setup-ubuntu.sh
-     ```
-   - 若无法使用脚本，可参考脚本内容手动安装。
-4. **刷新 Docker 用户组（如需）**
-   ```bash
-   newgrp docker
-   ```
-5. **准备配置与数据目录**
-   ```bash
-   cp .env.example .env
-   vi .env   # 填写 BASE_DOMAIN、CF_DNS_API_TOKEN，如需提醒可填写 ACME_ACCOUNT_EMAIL
-   mkdir -p data
-   chmod 700 data
-   ```
-6. **启动服务**
-   ```bash
-   docker compose up -d --build
-   ```
-8. **验证容器状态与健康检查**
-   ```bash
-   docker compose ps
-   curl -sk https://yet.la/healthz
-   curl -sk https://yet.la/routes
-   ```
-9. **（可选）放行防火墙端口**
-   ```bash
-   sudo ufw allow 80/tcp
-   sudo ufw allow 443/tcp
-   ```
-
-完成后，可通过 `https://yet.la/admin` 登录后台或使用 API 进行管理。
 
 ## 证书与 Nginx 配置
 

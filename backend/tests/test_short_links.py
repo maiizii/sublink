@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from backend.app.models import SessionLocal
+from backend.app.settings_service import get_site_settings
+
 ADMIN_AUTH = ("admin", "admin")
 
 
@@ -64,7 +67,8 @@ def test_create_short_link_allows_same_code_different_domain(client: "SimpleClie
     assert first.json()["domain"] == "yet.la"
     assert second.json()["domain"] == "go2.you"
 
-    client.put("/api/settings", json=original, auth=ADMIN_AUTH)
+    reset = client.put("/api/settings", json=original, auth=ADMIN_AUTH)
+    assert reset.status_code == 200
 
 
 def test_create_short_link_invalid_code(client: "SimpleClient") -> None:
@@ -261,10 +265,33 @@ def test_missing_short_link_with_path_avoids_subdomain_loop(
     assert response.headers["location"] == "https://www.example.com"
 
 
-def test_root_request_returns_not_found(client: "SimpleClient") -> None:
+def test_root_request_redirects_to_admin(client: "SimpleClient") -> None:
     response = client.get("/", headers={"host": "yet.la"}, follow_redirects=False)
+    assert response.status_code == 302
+    assert response.headers["location"] == "https://yet.la/admin"
+
+
+def test_short_link_root_still_not_found(client: "SimpleClient") -> None:
+    with SessionLocal() as db:
+        settings = get_site_settings(db)
+        original = {
+            "managed_domains": settings.managed_domains,
+            "short_code_length": settings.short_code_length,
+            "short_link_path": settings.short_link_path,
+            "logo_url": settings.logo_url,
+            "icon_url": settings.icon_url,
+        }
+
+    payload = dict(original)
+    payload["managed_domains"] = "yet.la go2.you"
+    update = client.put("/api/settings", json=payload, auth=ADMIN_AUTH)
+    assert update.status_code == 200
+
+    response = client.get("/", headers={"host": "go2.you"}, follow_redirects=False)
     assert response.status_code == 404
-    assert response.text == "Not Found"
+
+    reset = client.put("/api/settings", json=original, auth=ADMIN_AUTH)
+    assert reset.status_code == 200
 
 
 def test_create_short_link_via_htmx_form(client: "SimpleClient") -> None:
