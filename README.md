@@ -274,12 +274,12 @@ curl -sk -u admin:admin \
 
 ```nginx
 server {
-    listen 80;
+    listen 80 default_server;
     return 301 https://$host$request_uri;
 }
 
 server {
-    listen 443 ssl http2;
+    listen 443 ssl http2 default_server;
     ssl_certificate     /etc/nginx/ssl/fullchain.cer;
     ssl_certificate_key /etc/nginx/ssl/private.key;
 
