@@ -9,13 +9,13 @@ APT_UPDATED=false
 
 log() {
   local level="$1"; shift
-  printf '[%s] %s\n' "$level" "$*"
+  printf '[%s] %s\n' "$level" "$*" >&2
 }
 
 log_step() { log "步骤" "$*"; }
 log_info() { log "信息" "$*"; }
-log_warn() { log "警告" "$*" >&2; }
-log_error() { log "错误" "$*" >&2; }
+log_warn() { log "警告" "$*"; }
+log_error() { log "错误" "$*"; }
 
 require_root() {
   if [[ ${EUID:-$(id -u)} -ne 0 ]]; then
