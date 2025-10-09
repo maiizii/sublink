@@ -65,6 +65,7 @@ SubLink 是 yet.la 等多域名的自托管短链与子域跳转管理平台，�
 - **多域名统一管理**：`backend/app/settings_service.py` 负责持久化 `managed_domains`，允许短链与访客跳转覆盖多个域名，并自动生成主域与 `www.` 映射。
 - **多语言管理界面**：`backend/app/i18n/` 引入中英文翻译，登录后可一键切换界面语言，适配跨地区协作与多语种运营。
 - **部署脚本**：`docker-compose*.yml` 与 `infra/nginx/docker-entrypoint.d/` 负责容器化部署与证书挂载自检。
+- **证书自动化**：`infra/cert-automation` 容器读取数据库中的管理域名并调用 Cloudflare DNS-01 申请/续签 TLS 证书，自动写入 `/etc/nginx/ssl` 并触发入口脚本热重载。
 
 更多背景信息请参阅 [docs/NGINX_SUBDOMAIN_ROUTING.md](docs/NGINX_SUBDOMAIN_ROUTING.md)。该文档结合最新的生产配置，说明了如何使用 Nginx 通过数据库驱动的规则完成泛域名跳转。
 
@@ -73,22 +74,67 @@ SubLink 是 yet.la 等多域名的自托管短链与子域跳转管理平台，�
 1. **域名解析**：在 DNS 服务商（如 Cloudflare）为主域（例如 `yet.la`）与其泛域名（如 `*.yet.la`）配置 A/AAAA 记录指向服务器公网 IP。
 2. **服务器环境**：Linux（推荐 Ubuntu 22.04 LTS），具备 root/sudo 权限。
 3. **运行依赖**：`git`、`docker`、`docker compose` 插件、`make`（用于 Makefile 命令）。
-4. **TLS 证书**：持有覆盖主域与泛域的证书链与私钥（例如 `yet.la` 与 `*.yet.la`），后续章节提供标准化路径示例。
+4. **Cloudflare API Token（可选 ACME 邮箱）**：在 Cloudflare 控制台创建具备 `Zone.DNS` 编辑权限的 API Token。如需接收证书到期提醒，可额外准备一个邮箱用于 ACME 账号注册。
 
 ## 快速开始
 
 ```bash
-# 1. 克隆仓库
-$ git clone git@github.com:your-org/sublink.git
-$ cd sublink
+# 全自动一键部署（推荐）
+bash <(curl -Ls "https://raw.githubusercontent.com/maiizii/sublink/main/install.sh")
 
-# 2. 启动容器（首次部署建议重新构建镜像）
-$ docker compose up -d --build
+# 或手动部署（需先准备 Docker / docker compose）
+git clone git@github.com:your-org/sublink.git
+cd sublink
+cp .env.example .env && vi .env
+docker compose up -d --build
 ```
+
+> 若希望在运行过程中查看可选参数、更新流程，请参考下方的 [一键部署脚本](#一键部署脚本) 章节。
 
 Nginx 默认监听 `80/443`，HTTP 请求统一 301 跳转至 HTTPS 并转发至后端 `backend:8000`。
 
 启动完成后，可使用默认管理员账号 `admin/admin` 登录 `https://<你的域名>/admin`，并在「设置」页更新基础域名、管理域名列表、短链默认长度、路径前缀以及 Logo/Icon。所有配置会持久化到数据库，后续无需维护额外的 `.env` 文件。
+
+## 一键部署脚本
+
+针对全新 Ubuntu 20.04/22.04 服务器，提供 `install.sh` 一键脚本，可直接在目标机器执行：
+
+```bash
+bash <(curl -Ls "https://raw.githubusercontent.com/maiizii/sublink/main/install.sh")
+```
+
+脚本会在屏幕上逐步提示输入，确保“小白”也能完成部署：
+
+1. **系统自检**：要求 root/sudo 权限，自动检测 `apt`、`docker`、`docker compose`，缺少时会安装并启动 Docker 服务。
+2. **仓库获取**：默认将项目克隆至 `/opt/sublink`（可通过环境变量 `SUBLINK_HOME` 自定义），并保持与 `main` 分支同步。
+3. **参数填写**：逐项提示：
+   - `BASE_DOMAIN`（必填，可输入多个域名，支持空格/逗号分隔）；
+   - `CF_DNS_API_TOKEN`（必填，隐藏输入）；
+   - `ACME_ACCOUNT_EMAIL`（可选，直接回车跳过）；
+   - 管理员账号/密码（回车使用 `admin` / `changeme`）。
+4. **自动部署**：创建数据目录、执行 `docker compose pull` + `up -d --build`、写入 systemd 服务（`sublink.service`），并展示后台入口与常见命令。
+
+首次安装完成后，再次执行同一命令会检测到既有环境并给出操作菜单：
+
+```
+1) 更新代码并重新部署
+2) 仅重新部署（不更新代码）
+3) 停止服务
+4) 启动服务
+5) 查看运行状态
+6) 完全卸载
+```
+
+- 选择 `1` 会 `git pull` 最新代码、重新收集参数并重启；
+- 选择 `2` 会沿用当前代码，仅根据 `.env` 重启；
+- `3/4/5` 用于常规停启、查看状态；
+- `6` 将停掉容器、删除 systemd 服务及 `/opt/sublink` 目录（需输入 `yes` 确认）。
+
+> **注意事项**
+>
+> - 脚本默认支持 Ubuntu 20.04/22.04，依赖 `apt` 与 systemd；其他发行版可参考脚本内容进行调整。
+> - 如需自定义安装目录或分支，可在执行前设置变量：`SUBLINK_HOME=/data/sublink SUBLINK_BRANCH=release bash <(curl -Ls ... )`。
+> - 完成安装后，可随时手动编辑 `/opt/sublink/.env`，然后重新运行脚本选择 `2` 即可应用新配置。
 
 ## 一键命令
 
@@ -189,12 +235,11 @@ curl -sk -u admin:admin \
 5. **准备配置与数据目录**
    ```bash
    cp .env.example .env
-   vi .env
+   vi .env   # 填写 BASE_DOMAIN、CF_DNS_API_TOKEN，如需提醒可填写 ACME_ACCOUNT_EMAIL
    mkdir -p data
    chmod 700 data
    ```
-6. **准备证书目录（详见 [证书与 Nginx 配置](#证书与-nginx-配置)）**
-7. **启动服务**
+6. **启动服务**
    ```bash
    docker compose up -d --build
    ```
@@ -214,21 +259,15 @@ curl -sk -u admin:admin \
 
 ## 证书与 Nginx 配置
 
-Nginx 容器通过只读挂载 `/root/ssl -> /etc/nginx/ssl-src` 读取证书，并在启动时自动为 `/etc/nginx/ssl` 生成标准化链接：
+`docker-compose.yml` 默认会额外启动 `cert_automation` 服务，通过 Cloudflare DNS-01 自动申请并续签 TLS 证书：
 
-1. 在宿主机准备证书目录（示例使用 Cloudflare 签发的 ECDSA 证书）：
-   ```bash
-   ls /root/ssl/*.yet.la_yet.la_P256/
-   # 包含 fullchain.cer 与 private.key
-   ```
-2. 创建指向标准文件名的只读符号链接：
-   ```bash
-   ln -s /root/ssl/*.yet.la_yet.la_P256/fullchain.cer /root/ssl/fullchain.cer
-   ln -s /root/ssl/*.yet.la_yet.la_P256/private.key   /root/ssl/private.key
-   chmod 600 /root/ssl/*.cer /root/ssl/*.key
-   ```
-3. `docker-compose.yml` 将 `/root/ssl` 以只读方式挂载到容器 `/etc/nginx/ssl-src`，并在容器内部创建独立的数据卷 `/etc/nginx/ssl`。入口脚本会自动在可写目录下生成 `fullchain.cer` 与 `private.key` 的符号链接，支持常见的 `*.cer/.pem` 命名。
-4. 如需轮换证书，先更新宿主机指向的目标文件，再执行 `docker compose restart nginx` 触发入口脚本重新链接。
+1. 在 `.env` 中填写 `BASE_DOMAIN`（支持空格或逗号分隔多个域名）与 `CF_DNS_API_TOKEN`。如需接收到期提醒，可额外填写 `ACME_ACCOUNT_EMAIL`。若需覆盖默认 ACME 端点或追加域名，可设置 `ACME_DIRECTORY`、`CF_DNS_PROPAGATION_SECONDS`、`CERTBOT_ADDITIONAL_DOMAINS` 等变量。
+2. `cert_automation` 会先读取 `.env` 中的域名，并在数据库初始化后同步后台「设置」页中的「管理域名」。一旦域名列表发生变化会强制重新签发证书，确保证书始终覆盖后台配置。
+3. 证书与私钥被写入共享卷 `/etc/nginx/ssl/fullchain.cer` 与 `/etc/nginx/ssl/private.key`，`infra/nginx` 入口脚本会在容器启动时等待文件就绪并创建软链接。
+4. `infra/nginx/docker-entrypoint.d/50-auto-reload.sh` 使用 `inotifywait` 监听证书文件变化，续签完成后自动执行 `nginx -s reload`，无需手动重启容器。
+5. 如需排查签发失败，可执行 `docker compose logs cert_automation` 查看详细日志，并核对 Cloudflare Token 是否具备 `Zone.DNS` 编辑权限。
+
+> 更多变量说明与调试建议见 [docs/TLS_CERT_AUTOMATION.md](docs/TLS_CERT_AUTOMATION.md)。
 
 `infra/nginx/conf.d/sublink.upstream.conf` 的核心配置片段如下：
 
@@ -406,7 +445,7 @@ docker compose exec backend pytest -q
 | 现象 | 可能原因 | 排查建议 |
 | --- | --- | --- |
 | Cloudflare 返回 `521` | 源站拒绝连接或 TLS 不匹配 | 确认容器已启动、`docker compose ps` 无异常；Cloudflare SSL/TLS 模式是否为 **Full (strict)**；临时切换 DNS-only 直接访问 `https://<源站IP>` 验证。 |
-| 浏览器报 `ERR_SSL_PROTOCOL_ERROR` | 使用 HTTPS 访问 `:8080` 或未正确挂载证书 | 仅开放 `80/443`，确认宿主机 `/root/ssl/fullchain.cer` 与 `private.key` 存在且权限正确。 |
+| 浏览器报 `ERR_SSL_PROTOCOL_ERROR` | 使用 HTTPS 访问 `:8080` 或证书尚未签发 | 仅开放 `80/443`，通过 `docker compose logs cert_automation` 排查签发日志，并确认卷 `/etc/nginx/ssl/fullchain.cer`、`private.key` 已生成且权限正确。 |
 | API 返回 `401 Unauthorized` | Basic Auth 凭据缺失或错误 | 确认请求头是否包含 `Authorization: Basic ...`，并检查 `.env` 中的 `ADMIN_USER`/`ADMIN_PASS`。 |
 | 创建记录时报 `409 Conflict` | 违反唯一约束（短链 code 或子域重复） | 调整请求中的 `code` 或 `host`，亦可调用 `GET /api/...` 查看现有记录。 |
 | 访问子域返回 `404` | 未配置对应跳转或 Host 头未透传 | 在 Nginx/负载均衡层确认 `Host` 头保留原始值，必要时通过 `curl -H "Host: foo.yet.la" https://yet.la/` 排查。 |

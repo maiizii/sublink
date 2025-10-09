@@ -2,21 +2,35 @@ version: "3.9"
 
 services:
   nginx:
-    image: nginx:1.25-alpine
+    build:
+      context: ./infra/nginx
     ports:
       - "80:80"
       - "443:443"
     volumes:
       - ./infra/nginx/conf.d/sublink.upstream.conf:/etc/nginx/conf.d/default.conf:ro
       - ./infra/nginx/docker-entrypoint.d:/docker-entrypoint.d:ro
-      - type: bind
-        source: /root/ssl
-        target: /etc/nginx/ssl-src
-        read_only: true
       - nginx_ssl_cache:/etc/nginx/ssl
+    restart: unless-stopped
     environment:
-      - SSL_SOURCE_DIR=/etc/nginx/ssl-src
       - SSL_TARGET_DIR=/etc/nginx/ssl
+      - SSL_SOURCE_DIR=/etc/nginx/ssl
+    depends_on:
+      - backend
+      - cert_automation
+
+  cert_automation:
+    build:
+      context: ./infra/cert-automation
+    restart: unless-stopped
+    env_file:
+      - ./.env
+    environment:
+      - CERT_TARGET_DIR=/etc/nginx/ssl
+    volumes:
+      - ./data:/data:ro
+      - nginx_ssl_cache:/etc/nginx/ssl
+      - certbot_state:/etc/letsencrypt
     depends_on:
       - backend
 
@@ -31,6 +45,8 @@ services:
       - ./data:/data
     env_file:
       - ./.env
+    restart: unless-stopped
 
 volumes:
   nginx_ssl_cache:
+  certbot_state:
