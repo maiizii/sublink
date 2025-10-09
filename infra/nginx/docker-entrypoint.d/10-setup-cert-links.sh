@@ -60,6 +60,11 @@ link_certificates() {
         exit 1
     fi
 
+    if [ "$source_fullchain" = "$FULLCHAIN" ] && [ "$source_private" = "$PRIVATE_KEY" ]; then
+        echo "[entrypoint] 证书文件已在目标目录，无需创建软链接" >&2
+        return 0
+    fi
+
     ln -sf "$source_fullchain" "$FULLCHAIN"
     ln -sf "$source_private" "$PRIVATE_KEY"
     echo "[entrypoint] 已链接证书: $FULLCHAIN -> $source_fullchain" >&2
