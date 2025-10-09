@@ -182,8 +182,8 @@ TRANSLATIONS = {
                 "user": "用户：{username}",
             },
             "empty": {
-                "links": "暂无短链记录，可通过上方表单或 <code>/api/links</code> 接口创建。",
-                "subdomains": "暂无子域配置，可通过上方表单或 <code>/api/subdomains</code> 接口创建。",
+                "links": "暂无短链记录，可通过上方表单创建。",
+                "subdomains": "暂无子域配置，可通过上方表单创建。",
                 "users": "暂无用户记录。",
                 "blacklist": "暂无屏蔽名单，可在上方表单添加受限子域前缀。",
             },

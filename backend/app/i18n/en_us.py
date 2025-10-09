@@ -182,8 +182,8 @@ TRANSLATIONS = {
                 "user": "User: {username}",
             },
             "empty": {
-                "links": "No short links yet. Create one above or via the <code>/api/links</code> endpoint.",
-                "subdomains": "No subdomains found. Create one above or via the <code>/api/subdomains</code> endpoint.",
+                "links": "No short links yet. Create one above.",
+                "subdomains": "No subdomains found. Create one above.",
                 "users": "No users yet.",
                 "blacklist": "No blacklist entries. Add restricted labels above.",
             },
