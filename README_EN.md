@@ -60,7 +60,7 @@ Running the script again displays a looping maintenance menu:
 4 Start services
 5 Restart services
 6 Show status
-7 Request/Renew TLS certificates
+7 Request TLS certificates
 8 Uninstall SubLink
 0 Exit
 ```
@@ -109,11 +109,14 @@ Sign in at `https://<your-domain>/admin` with the default `admin/admin` credenti
 
 Docker Compose starts an extra `cert_automation` service that manages certificate issuance end to end:
 
-1. Populate `.env` with `BASE_DOMAIN` (space- or comma-separated) and `CF_DNS_API_TOKEN`. Add `ACME_ACCOUNT_EMAIL` only if you want renewal reminders. Optional knobs include `ACME_DIRECTORY`, `CF_DNS_PROPAGATION_SECONDS`, and `CERTBOT_ADDITIONAL_DOMAINS`.
+1. Populate `.env` with `BASE_DOMAIN` (space- or comma-separated) and `CF_DNS_API_TOKEN`. Add `ACME_ACCOUNT_EMAIL` only if you want renewal reminders. Optional knobs include `ACME_DIRECTORY`, `CERTBOT_RENEW_BEFORE_EXPIRY_DAYS`, `CF_DNS_PROPAGATION_SECONDS`, and `CERTBOT_ADDITIONAL_DOMAINS`.
 2. The service first consumes the values from `.env` and, once the database is ready, mirrors updates from the admin **Settings → Managed domains** list. Any change triggers a forced issuance so the certificate always matches the latest domains.
 3. Certificates and keys are written to the shared volume at `/etc/nginx/ssl/fullchain.cer` and `/etc/nginx/ssl/private.key`. The Nginx entrypoint waits for the files to appear before completing startup.
 4. `infra/nginx/docker-entrypoint.d/50-auto-reload.sh` watches the directory with `inotifywait` and runs `nginx -s reload` after each renewal—no manual restart required.
 5. For troubleshooting, run `docker compose logs cert_automation` to inspect ACME responses and Cloudflare DNS propagation.
+6. `CERTBOT_RENEW_BEFORE_EXPIRY_DAYS` (default `15`) controls how many days before expiration automatic renewals kick in. Restart the `cert_automation` service after changing it.
+
+> The management script's "Request TLS certificates" menu item only issues certificates for domains that are currently missing coverage; existing certificates continue to renew automatically inside the `cert_automation` service.
 
 > See [docs/TLS_CERT_AUTOMATION.md](docs/TLS_CERT_AUTOMATION.md) for advanced usage and configuration notes.
 

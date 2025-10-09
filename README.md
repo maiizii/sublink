@@ -101,7 +101,7 @@ bash <(curl -Ls "https://raw.githubusercontent.com/maiizii/sublink/main/install.
 4 启动服务
 5 重启服务
 6 查看运行状态
-7 申请/续签 TLS 证书
+7 申请 TLS 证书
 8 卸载 SubLink
 0 退出
 ```
@@ -222,11 +222,14 @@ curl -sk -u admin:admin \
 
 `docker-compose.yml` 默认会额外启动 `cert_automation` 服务，通过 Cloudflare DNS-01 自动申请并续签 TLS 证书：
 
-1. 在 `.env` 中填写 `BASE_DOMAIN`（支持空格或逗号分隔多个域名）与 `CF_DNS_API_TOKEN`。如需接收到期提醒，可额外填写 `ACME_ACCOUNT_EMAIL`。若需覆盖默认 ACME 端点或追加域名，可设置 `ACME_DIRECTORY`、`CF_DNS_PROPAGATION_SECONDS`、`CERTBOT_ADDITIONAL_DOMAINS` 等变量。
+1. 在 `.env` 中填写 `BASE_DOMAIN`（支持空格或逗号分隔多个域名）与 `CF_DNS_API_TOKEN`。如需接收到期提醒，可额外填写 `ACME_ACCOUNT_EMAIL`。若需覆盖默认 ACME 端点、调整提前续签天数或追加域名，可设置 `ACME_DIRECTORY`、`CERTBOT_RENEW_BEFORE_EXPIRY_DAYS`、`CF_DNS_PROPAGATION_SECONDS`、`CERTBOT_ADDITIONAL_DOMAINS` 等变量。
 2. `cert_automation` 会先读取 `.env` 中的域名，并在数据库初始化后同步后台「设置」页中的「管理域名」。一旦域名列表发生变化会强制重新签发证书，确保证书始终覆盖后台配置。
 3. 证书与私钥被写入共享卷 `/etc/nginx/ssl/fullchain.cer` 与 `/etc/nginx/ssl/private.key`，`infra/nginx` 入口脚本会在容器启动时等待文件就绪并创建软链接。
 4. `infra/nginx/docker-entrypoint.d/50-auto-reload.sh` 使用 `inotifywait` 监听证书文件变化，续签完成后自动执行 `nginx -s reload`，无需手动重启容器。
 5. 如需排查签发失败，可执行 `docker compose logs cert_automation` 查看详细日志，并核对 Cloudflare Token 是否具备 `Zone.DNS` 编辑权限。
+6. `CERTBOT_RENEW_BEFORE_EXPIRY_DAYS`（默认 15）决定自动续签会在证书过期前多少天启动，修改后重启 `cert_automation` 容器即可生效。
+
+> 管理脚本菜单中的「申请 TLS 证书」仅会为缺失证书的域名触发申请流程；已存在的证书由 `cert_automation` 容器按照上述配置自动续签。
 
 > 更多变量说明与调试建议见 [docs/TLS_CERT_AUTOMATION.md](docs/TLS_CERT_AUTOMATION.md)。
 

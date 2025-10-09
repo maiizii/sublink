@@ -11,6 +11,7 @@ DEPLOY_HOOK="/app/deploy-hook.sh"
 DOMAINS_CACHE="/var/lib/cert-automation/current_domains"
 CREDENTIALS_PATH="/etc/letsencrypt/cloudflare.ini"
 STATE_DIR="$(dirname "$DOMAINS_CACHE")"
+RENEW_BEFORE_DAYS="${CERTBOT_RENEW_BEFORE_EXPIRY_DAYS:-15}"
 
 if [ -n "$ACME_ACCOUNT_EMAIL" ]; then
     CERTBOT_ACCOUNT_MODE="email"
@@ -34,6 +35,19 @@ case "$CHECK_INTERVAL" in
         ;;
 esac
 
+case "$RENEW_BEFORE_DAYS" in
+    ''|*[!0-9]*)
+        echo "[cert-automation] CERTBOT_RENEW_BEFORE_EXPIRY_DAYS 必须为正整数天数" >&2
+        exit 1
+        ;;
+    0)
+        echo "[cert-automation] CERTBOT_RENEW_BEFORE_EXPIRY_DAYS 必须大于 0" >&2
+        exit 1
+        ;;
+esac
+
+RENEW_BEFORE_SPEC="${RENEW_BEFORE_DAYS} days"
+
 mkdir -p "$STATE_DIR"
 
 cat >"$CREDENTIALS_PATH" <<EOF_CREDS
@@ -48,6 +62,58 @@ if [ -n "${ACME_EAB_KID:-}" ] && [ -n "${ACME_EAB_HMAC_KEY:-}" ]; then
 else
     CERTBOT_EAB_OPTIONS=""
 fi
+
+ensure_renew_before_expiry() {
+    conf="/etc/letsencrypt/renewal/${CERT_NAME}.conf"
+    if [ ! -f "$conf" ]; then
+        return 0
+    fi
+
+    python3 <<'PY' "$conf" "$RENEW_BEFORE_SPEC"
+import pathlib
+import sys
+
+path = pathlib.Path(sys.argv[1])
+target = f"renew_before_expiry = {sys.argv[2]}"
+section = "[renewalparams]"
+lines = path.read_text().splitlines()
+
+out_lines = []
+in_section = False
+found_section = False
+updated = False
+
+for line in lines:
+    stripped = line.strip()
+    if stripped.startswith("[") and stripped.endswith("]"):
+        if in_section and not updated:
+            out_lines.append(target)
+            updated = True
+        in_section = stripped == section
+        if in_section:
+            found_section = True
+        out_lines.append(line)
+        continue
+    if in_section and stripped.startswith("renew_before_expiry"):
+        if not updated:
+            out_lines.append(target)
+            updated = True
+        continue
+    out_lines.append(line)
+
+if in_section and not updated:
+    out_lines.append(target)
+
+if not found_section:
+    if out_lines and out_lines[-1].strip():
+        out_lines.append("")
+    out_lines.append(section)
+    out_lines.append(target)
+
+if out_lines != lines:
+    path.write_text("\n".join(out_lines) + "\n")
+PY
+}
 
 run_cycle() {
     if ! python3 /app/fetch_domains.py > /tmp/certbot.domains 2>/tmp/certbot.domains.log; then
@@ -118,6 +184,7 @@ run_cycle() {
         if "$@"; then
             mv /tmp/certbot.domains "$DOMAINS_CACHE"
             echo "[cert-automation] 证书已成功签发/更新" >&2
+            ensure_renew_before_expiry
             set +f
             return 0
         fi
@@ -126,6 +193,13 @@ run_cycle() {
         set +f
         return 70
     fi
+
+    if [ "${CERTBOT_ONESHOT:-0}" = "1" ]; then
+        echo "[cert-automation] 证书状态无变更，本次仅检测未触发续签" >&2
+        return 0
+    fi
+
+    ensure_renew_before_expiry
 
     if ! certbot renew \
         --non-interactive \
