@@ -4,12 +4,12 @@ from __future__ import annotations
 TRANSLATIONS = {
     "admin": {
         "meta": {
-            "title": "{site} 短链子域管理后台",
+            "title": "{site} 短链子域管理",
             "logoAlt": "{site} 平台标识",
             "brandSr": "{site} Platform",
         },
         "hero": {
-            "title": "{site} 短链子域管理后台",
+            "title": "{site} 短链子域管理",
             "themeSwitchLabel": "主题切换",
             "toggleLight": "切换到亮色主题",
             "toggleDark": "切换到暗色主题",
@@ -221,7 +221,7 @@ TRANSLATIONS = {
             "languageToggleChinese": "切换到简体中文",
             "fallbackNotices": [
                 "htmx 未加载，使用回退逻辑处理管理后台交互。",
-                "htmx 未加载，使用回退逻辑处理短链子域管理后台交互。",
+                "htmx 未加载，使用回退逻辑处理短链子域管理交互。",
             ],
         },
         "validation": {
