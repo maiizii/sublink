@@ -88,7 +88,7 @@ bash <(curl -Ls "https://raw.githubusercontent.com/maiizii/sublink/main/install.
 第一次运行需要按提示输入：
 
 1. 域名BASE_DOMAIN（必须输入，例如yet.la）；
-2. CF_DNS_API_TOKEN（必须输入，申请/续签证书用，可参考[Cloudflare 设置](#cloudflare-设置)）；
+2. CF_DNS_API_TOKEN（必须输入，申请/续签证书用，如何获取可参考[Cloudflare 设置](#cloudflare-设置)）；
 3. ACME_ACCOUNT_EMAIL（证书通知邮箱，可为空）；
 4. 用户名/密码（如果直接回车就是缺省的admin/admin）；
 
