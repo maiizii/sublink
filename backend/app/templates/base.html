@@ -515,16 +515,19 @@
 
       @media (max-width: 640px) {
         .theme-footer {
-          flex-direction: column;
+          flex-direction: row;
           gap: 0.5rem;
+          justify-content: space-between;
+          align-items: center;
+          text-align: left;
         }
 
         .theme-footer__powered {
-          width: 100%;
           position: static;
           transform: none;
           white-space: normal;
-          text-align: center;
+          margin-left: auto;
+          text-align: right;
         }
       }
 
