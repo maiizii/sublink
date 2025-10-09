@@ -135,6 +135,7 @@ bash <(curl -Ls "https://raw.githubusercontent.com/maiizii/sublink/main/install.
 > - 脚本默认支持 Ubuntu 20.04/22.04，依赖 `apt` 与 systemd；其他发行版可参考脚本内容进行调整。
 > - 如需自定义安装目录或分支，可在执行前设置变量：`SUBLINK_HOME=/data/sublink SUBLINK_BRANCH=release bash <(curl -Ls ... )`。
 > - 完成安装后，可随时手动编辑 `/opt/sublink/.env`，然后重新运行脚本选择 `2` 即可应用新配置。
+> - 如曾执行旧版本脚本导致 `/etc/apt/sources.list.d/docker.list` 配置异常，可删除该文件后重新运行安装命令：`sudo rm -f /etc/apt/sources.list.d/docker.list`。新版脚本会自动检测并清理异常配置，无需额外操作。
 
 ## 一键命令
 
