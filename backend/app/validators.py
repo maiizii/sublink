@@ -3,14 +3,15 @@ from __future__ import annotations
 
 import re
 
-from .i18n import DEFAULT_LOCALE, translate
+from .i18n import translate
+from .locale import get_current_locale
 
 
 _SLUG_PATTERN = re.compile(r"^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$")
 
 
 def _t(key: str, **params: str) -> str:
-    return translate(key, locale=DEFAULT_LOCALE, **params)
+    return translate(key, locale=get_current_locale(), **params)
 
 
 def normalize_slug(value: str, *, field: str, enforce_length: bool = False) -> str:

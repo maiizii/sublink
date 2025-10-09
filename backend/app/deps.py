@@ -9,7 +9,8 @@ from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from .i18n import DEFAULT_LOCALE, translate
+from .i18n import translate
+from .locale import get_current_locale
 from .models import SessionLocal, User
 from .security import needs_rehash, rehash_password, verify_password
 from .session import get_session, set_session
@@ -18,7 +19,7 @@ security = HTTPBasic(auto_error=False)
 
 
 def _t(key: str, **params: Any) -> str:
-    return translate(key, locale=DEFAULT_LOCALE, **params)
+    return translate(key, locale=get_current_locale(), **params)
 
 
 def get_db() -> Generator[Session, None, None]:

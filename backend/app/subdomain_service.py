@@ -5,13 +5,14 @@ from typing import Iterable
 
 from sqlalchemy import select
 
-from .i18n import DEFAULT_LOCALE, translate
+from .i18n import translate
+from .locale import get_current_locale
 from .models import SessionLocal, SubdomainBlacklist
 from .validators import normalize_slug
 
 
 def _t(key: str) -> str:
-    return translate(key, locale=DEFAULT_LOCALE)
+    return translate(key, locale=get_current_locale())
 
 
 DEFAULT_SUBDOMAIN_BLACKLIST_LABELS: tuple[str, ...] = (

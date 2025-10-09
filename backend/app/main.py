@@ -70,7 +70,15 @@ from .settings_service import (
 )
 from .subdomain_service import ensure_default_subdomain_blacklist
 from .validators import extract_subdomain_label, normalize_slug
-from .i18n import DEFAULT_LOCALE, translate
+from .i18n import translate
+from .locale import (
+    LOCALE_COOKIE_MAX_AGE,
+    LOCALE_COOKIE_NAME,
+    get_current_locale,
+    push_locale,
+    reset_locale,
+    resolve_locale_from_request,
+)
 
 MAX_CODE_ATTEMPTS = 10
 
@@ -90,9 +98,9 @@ def _feedback_html(message: str, *, tone: str = "info") -> str:
 
 
 def _t(key: str, **params: Any) -> str:
-    """Translate helper that defaults to the configured locale."""
+    """Translate helper that respects the current request locale."""
 
-    return translate(key, locale=DEFAULT_LOCALE, **params)
+    return translate(key, locale=get_current_locale(), **params)
 
 app = FastAPI(
     title="SubLink Redirect API",
@@ -113,6 +121,29 @@ STATIC_DIR = Path(__file__).resolve().parent / "static"
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
 app.include_router(admin_router)
+
+
+@app.middleware("http")
+async def apply_request_locale(request: Request, call_next):
+    """Resolve and activate the locale for the current request lifecycle."""
+
+    locale_value, should_set_cookie = resolve_locale_from_request(request)
+    token = push_locale(locale_value)
+    request.state.locale = locale_value
+    request.state.locale_should_set_cookie = should_set_cookie
+    try:
+        response = await call_next(request)
+    finally:
+        reset_locale(token)
+    if should_set_cookie:
+        response.set_cookie(
+            LOCALE_COOKIE_NAME,
+            locale_value,
+            max_age=LOCALE_COOKIE_MAX_AGE,
+            samesite="lax",
+            path="/",
+        )
+    return response
 
 
 @app.on_event("startup")
