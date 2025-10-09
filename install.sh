@@ -264,18 +264,26 @@ prompt_with_default() {
 }
 
 prepare_env() {
+  local mode="${1:-interactive}" env_file="$INSTALL_DIR/.env" existed=false
+  if [[ -f "$env_file" ]]; then
+    existed=true
+  fi
   copy_env_example
-  local domains token email admin_user admin_pass
-  domains="$(prompt_required_domains)"
-  token="$(prompt_secret CF_DNS_API_TOKEN "请输入 Cloudflare CF_DNS_API_TOKEN")"
-  email="$(prompt_optional ACME_ACCOUNT_EMAIL "请输入 ACME 通知邮箱（可选，直接回车跳过）：")"
-  admin_user="$(prompt_with_default ADMIN_USER "请输入管理员账号（默认 admin）：" "admin")"
-  admin_pass="$(prompt_with_default ADMIN_PASS "请输入管理员密码（默认 changeme）：" "changeme")"
-  set_env BASE_DOMAIN "$domains"
-  set_env CF_DNS_API_TOKEN "$token"
-  set_env ACME_ACCOUNT_EMAIL "$email"
-  set_env ADMIN_USER "$admin_user"
-  set_env ADMIN_PASS "$admin_pass"
+  if [[ "$mode" == "reuse" && "$existed" == true ]]; then
+    log_info "检测到现有配置文件，直接使用：$env_file"
+  else
+    local domains token email admin_user admin_pass
+    domains="$(prompt_required_domains)"
+    token="$(prompt_secret CF_DNS_API_TOKEN "请输入 Cloudflare CF_DNS_API_TOKEN")"
+    email="$(prompt_optional ACME_ACCOUNT_EMAIL "请输入 ACME 通知邮箱（可选，直接回车跳过）：")"
+    admin_user="$(prompt_with_default ADMIN_USER "请输入管理员账号（默认 admin）：" "admin")"
+    admin_pass="$(prompt_with_default ADMIN_PASS "请输入管理员密码（默认 changeme）：" "changeme")"
+    set_env BASE_DOMAIN "$domains"
+    set_env CF_DNS_API_TOKEN "$token"
+    set_env ACME_ACCOUNT_EMAIL "$email"
+    set_env ADMIN_USER "$admin_user"
+    set_env ADMIN_PASS "$admin_pass"
+  fi
   install -d -m 700 "$INSTALL_DIR/data"
   log_info "数据目录已准备：$INSTALL_DIR/data (700)"
 }
@@ -360,6 +368,15 @@ start_stack() {
   log_info "服务已启动"
 }
 
+restart_stack() {
+  detect_compose
+  log_step "停止服务"
+  "${COMPOSE_BIN[@]}" -f "$INSTALL_DIR/docker-compose.yml" down
+  log_step "启动服务"
+  "${COMPOSE_BIN[@]}" -f "$INSTALL_DIR/docker-compose.yml" up -d
+  log_info "服务已重启"
+}
+
 show_status() {
   detect_compose
   "${COMPOSE_BIN[@]}" -f "$INSTALL_DIR/docker-compose.yml" ps
@@ -388,22 +405,23 @@ menu() {
   4) 启动服务
   5) 查看运行状态
   6) 完全卸载
+  7) 重启服务
 MENU
-  read -r -p "请输入选项 [1-6]：" choice || true
+  read -r -p "请输入选项 [1-7]：" choice || true
   case "$choice" in
     1)
       ensure_packages
       install_docker
       ensure_repo
       update_repo
-      prepare_env
+      prepare_env reuse
       deploy_stack
       ;;
     2)
       ensure_packages
       install_docker
       ensure_repo
-      prepare_env
+      prepare_env reuse
       deploy_stack
       ;;
     3)
@@ -423,6 +441,9 @@ MENU
         log_warn "已取消卸载"
       fi
       ;;
+    7)
+      restart_stack
+      ;;
     *)
       log_warn "无效选项"
       ;;
@@ -433,8 +454,7 @@ initial_install() {
   ensure_packages
   install_docker
   ensure_repo
-  copy_env_example
-  prepare_env
+  prepare_env interactive
   deploy_stack
 }
 
