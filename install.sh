@@ -66,6 +66,7 @@ install_docker() {
   local repo_entry
   repo_entry="deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu ${VERSION_CODENAME} stable"
   printf '%s\n' "$repo_entry" | tee /etc/apt/sources.list.d/docker.list >/dev/null
+
   log_step "刷新 Docker 软件源"
   apt-get update
   log_step "安装 Docker 引擎与 Compose 插件"
