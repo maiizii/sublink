@@ -296,7 +296,7 @@
       }
 
       .language-toggle {
-        font-size: 0.75rem;
+        font-size: 0.8rem;
         font-weight: 600;
         letter-spacing: 0.08em;
         text-transform: uppercase;
@@ -1298,7 +1298,8 @@
       }
 
       .theme-button--password,
-      .theme-button--logout {
+      .theme-button--logout,
+      .theme-button--language {
         color: #ffffff;
         background: rgba(255, 255, 255, 0.22);
         border-color: rgba(255, 255, 255, 0.38);
@@ -1307,14 +1308,17 @@
       .theme-button--password:hover,
       .theme-button--password:focus-visible,
       .theme-button--logout:hover,
-      .theme-button--logout:focus-visible {
+      .theme-button--logout:focus-visible,
+      .theme-button--language:hover,
+      .theme-button--language:focus-visible {
         color: var(--theme-primary-strong);
         background: rgba(99, 102, 241, 0.18);
         border-color: transparent;
       }
 
       :root[data-theme="nebula"] .theme-button--password,
-      :root[data-theme="nebula"] .theme-button--logout {
+      :root[data-theme="nebula"] .theme-button--logout,
+      :root[data-theme="nebula"] .theme-button--language {
         color: var(--theme-primary);
         background: rgba(56, 189, 248, 0.16);
         border-color: rgba(56, 189, 248, 0.32);
@@ -1323,7 +1327,9 @@
       :root[data-theme="nebula"] .theme-button--password:hover,
       :root[data-theme="nebula"] .theme-button--password:focus-visible,
       :root[data-theme="nebula"] .theme-button--logout:hover,
-      :root[data-theme="nebula"] .theme-button--logout:focus-visible {
+      :root[data-theme="nebula"] .theme-button--logout:focus-visible,
+      :root[data-theme="nebula"] .theme-button--language:hover,
+      :root[data-theme="nebula"] .theme-button--language:focus-visible {
         color: #ffffff;
         background: rgba(56, 189, 248, 0.3);
         border-color: transparent;
@@ -2534,16 +2540,16 @@
                   </button>
                 </div>
                 {% set is_chinese_locale = locale == 'zh-CN' %}
-                <button
-                  type="button"
-                  class="theme-toggle language-toggle"
+                <a
+                  class="theme-button theme-button--ghost theme-button--icon theme-button--language language-toggle"
+                  href="{{ request.url.include_query_params(lang='en-US') if is_chinese_locale else request.url.include_query_params(lang='zh-CN') }}"
                   data-locale-toggle
                   data-next-locale="{{ 'en-US' if is_chinese_locale else 'zh-CN' }}"
                   aria-label="{{ _('admin.hero.toggleToEnglish') if is_chinese_locale else _('admin.hero.toggleToChinese') }}"
                 >
                   <span aria-hidden="true" data-locale-toggle-label>{{ 'EN' if is_chinese_locale else '简' }}</span>
                   <span class="sr-only" data-locale-toggle-sr>{{ _('admin.hero.toggleToEnglish') if is_chinese_locale else _('admin.hero.toggleToChinese') }}</span>
-                </button>
+                </a>
                 {% if show_logout_button %}
                 <a
                   class="theme-button theme-button--ghost theme-button--icon theme-button--password"
