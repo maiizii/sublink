@@ -24,8 +24,19 @@ require_root() {
   fi
 }
 
+cleanup_docker_repo() {
+  local docker_list="/etc/apt/sources.list.d/docker.list"
+  if [[ -f "$docker_list" ]]; then
+    if ! grep -Eq '^deb \\[arch=[^ ]+ signed-by=/etc/apt/keyrings/docker.gpg\\] https://download.docker.com/linux/ubuntu [^ ]+ stable$' "$docker_list" 2>/dev/null; then
+      log_warn "检测到损坏的 Docker 软件源配置，已移除以便重新生成"
+      rm -f "$docker_list"
+    fi
+  fi
+}
+
 ensure_apt_update() {
   if [[ "$APT_UPDATED" == false ]]; then
+    cleanup_docker_repo
     log_step "更新系统软件源"
     apt-get update
     APT_UPDATED=true
@@ -51,11 +62,10 @@ install_docker() {
   fi
   chmod a+r /etc/apt/keyrings/docker.gpg
   . /etc/os-release
-  cat <<REPO >/etc/apt/sources.list.d/docker.list
-deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] \\
-  https://download.docker.com/linux/ubuntu \\
-  ${VERSION_CODENAME} stable
-REPO
+  log_step "写入 Docker 软件源配置"
+  local repo_entry
+  repo_entry="deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu ${VERSION_CODENAME} stable"
+  printf '%s\n' "$repo_entry" | tee /etc/apt/sources.list.d/docker.list >/dev/null
   log_step "刷新 Docker 软件源"
   apt-get update
   log_step "安装 Docker 引擎与 Compose 插件"
