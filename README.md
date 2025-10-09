@@ -1,11 +1,13 @@
 # SubLink 短链子域管理平台
 
+简体中文 | [English](README_EN.md)
+
 SubLink 是 yet.la 等多域名的自托管短链与子域跳转管理平台，提供受 HTTP Basic 保护的管理后台与 API，用于维护二级域路由与短链接。Cloudflare 负责 DNS 与 TLS
 终止，Nginx 统一接受公网流量并转发到 FastAPI 后端。
 
 > Open Source Short-Link & Domain Routing System
 
-> 当前版本：**v1.10.8.3** —— 文档现已详细说明多域名治理策略，明确首个域名即平台主域名，用于默认短链与品牌展示；其余域名可供跳转使用，但对外展示的域名文案始终来源于该主域，避免出现多个对外标识。
+> 当前版本：**v1.10.9** —— 管理后台现已内置中英文切换，配套文档同步更新，方便全球团队协同维护短链与子域跳转。
 
 ## 目录
 
@@ -49,6 +51,7 @@ SubLink 是 yet.la 等多域名的自托管短链与子域跳转管理平台，�
 - **多用户权限管理**：`backend/app/models.py` 中新增 `users` 表，支持区分管理员与普通用户，并在后台界面完成用户 CRUD 与密码管理。
 - **子域屏蔽名单管控**：`backend/app/subdomain_service.py` 会在启动时写入默认的保留前缀列表，并通过 `/api/subdomain-blacklist` 提供增删改查接口，管理员可自定义限制普通用户可用的子域。
 - **多域名统一管理**：`backend/app/settings_service.py` 负责持久化 `managed_domains`，允许短链与访客跳转覆盖多个域名，并自动生成主域与 `www.` 映射。
+- **多语言管理界面**：`backend/app/i18n/` 引入中英文翻译，登录后可一键切换界面语言，适配跨地区协作与多语种运营。
 - **部署脚本**：`docker-compose*.yml` 与 `infra/nginx/docker-entrypoint.d/` 负责容器化部署与证书挂载自检。
 
 更多背景信息请参阅 [docs/NGINX_SUBDOMAIN_ROUTING.md](docs/NGINX_SUBDOMAIN_ROUTING.md)。该文档结合最新的生产配置，说明了如何使用 Nginx 通过数据库驱动的规则完成泛域名跳转。
