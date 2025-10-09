@@ -8,9 +8,10 @@ ACME_DIRECTORY="${ACME_DIRECTORY:-https://acme-v02.api.letsencrypt.org/directory
 CHECK_INTERVAL="${CERTBOT_CHECK_INTERVAL_SECONDS:-43200}"
 PROPAGATION_WAIT="${CF_DNS_PROPAGATION_SECONDS:-60}"
 DEPLOY_HOOK="/app/deploy-hook.sh"
-DOMAINS_CACHE="/var/lib/cert-automation/current_domains"
+# persist the domain cache inside the certbot volume so container restarts do not force renewals
+STATE_DIR="/etc/letsencrypt/.cert-automation"
+DOMAINS_CACHE="$STATE_DIR/current_domains"
 CREDENTIALS_PATH="/etc/letsencrypt/cloudflare.ini"
-STATE_DIR="$(dirname "$DOMAINS_CACHE")"
 RENEW_BEFORE_DAYS="${CERTBOT_RENEW_BEFORE_EXPIRY_DAYS:-15}"
 
 if [ -n "$ACME_ACCOUNT_EMAIL" ]; then
@@ -140,8 +141,58 @@ run_cycle() {
     mode="unchanged"
     if [ ! -d "/etc/letsencrypt/live/$CERT_NAME" ]; then
         mode="initial"
-    elif [ ! -f "$DOMAINS_CACHE" ] || ! cmp -s /tmp/certbot.domains "$DOMAINS_CACHE"; then
-        mode="changed"
+    else
+        if [ -f "$DOMAINS_CACHE" ]; then
+            if ! cmp -s /tmp/certbot.domains "$DOMAINS_CACHE"; then
+                mode="changed"
+            fi
+        else
+            # if the cache is missing but an existing certificate matches the requested domains,
+            # rebuild the cache to avoid triggering an unnecessary renewal
+            if python3 <<'PY' /tmp/certbot.domains "$CERT_NAME"; then
+import configparser
+import pathlib
+import sys
+
+domains_path = pathlib.Path(sys.argv[1])
+cert_name = sys.argv[2]
+renewal_path = pathlib.Path("/etc/letsencrypt/renewal") / f"{cert_name}.conf"
+
+if not renewal_path.exists():
+    sys.exit(1)
+
+config = configparser.RawConfigParser()
+config.read(renewal_path)
+
+try:
+    domains_line = config.get("renewalparams", "domains")
+except (configparser.NoSectionError, configparser.NoOptionError):
+    sys.exit(1)
+
+def normalize(items):
+    result = set()
+    for item in items:
+        token = item.strip()
+        if not token:
+            continue
+        if token.startswith("*."):
+            token = token[2:]
+        result.add(token.lower())
+    return sorted(result)
+
+existing = normalize(domains_line.replace(",", " ").split())
+new = normalize(domains_path.read_text().splitlines())
+
+if existing == new:
+    sys.exit(0)
+
+sys.exit(1)
+PY
+                cp /tmp/certbot.domains "$DOMAINS_CACHE"
+            else
+                mode="changed"
+            fi
+        fi
     fi
 
     if [ "$mode" != "unchanged" ]; then

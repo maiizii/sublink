@@ -9,7 +9,7 @@ PROJECT_VERSION="v1.10.9.2"
 APT_UPDATED=false
 
 print_banner() {
-  printf 'SubLink 短链子域管理平台%s 一键安装脚本\n\n' "$PROJECT_VERSION"
+  printf '\nSubLink 短链子域管理平台%s 一键安装脚本\n\n' "$PROJECT_VERSION"
   cat <<'BANNER'
 ███████╗██╗   ██╗██████╗ ██╗     ██╗███╗   ██╗██╗  ██╗
 ██╔════╝██║   ██║██╔══██╗██║     ██║████╗  ██║██║ ██╔╝

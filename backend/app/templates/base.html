@@ -478,10 +478,49 @@
       }
 
       .theme-footer {
+        position: relative;
         padding: 1.5rem 1.5rem 2.5rem;
         text-align: center;
         color: var(--theme-muted);
         font-size: 0.9rem;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+      }
+
+      .theme-footer__powered {
+        position: absolute;
+        right: 1.5rem;
+        top: 50%;
+        transform: translateY(-50%);
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+        white-space: nowrap;
+      }
+
+      .theme-footer a {
+        color: inherit;
+        text-decoration: none;
+      }
+
+      .theme-footer a:hover,
+      .theme-footer a:focus {
+        color: var(--theme-text-primary);
+        text-decoration: underline;
+      }
+
+      @media (max-width: 640px) {
+        .theme-footer {
+          flex-direction: column;
+          gap: 0.5rem;
+        }
+
+        .theme-footer__powered {
+          position: static;
+          transform: none;
+          white-space: normal;
+        }
       }
 
       .theme-gallery {
@@ -2603,6 +2642,9 @@
     <main class="theme-main">
       {% block content %}{% endblock %}
     </main>
-    <footer class="theme-footer">© {{ current_year }} {{ site_settings.site_domain }}</footer>
+    <footer class="theme-footer">
+      <span class="theme-footer__copyright">© {{ current_year }} {{ site_settings.site_domain }}</span>
+      <span class="theme-footer__powered">Powered by <a href="https://github.com/maiizii/sublink" target="_blank" rel="noopener noreferrer">MaiiZii</a></span>
+    </footer>
   </body>
 </html>
