@@ -4,14 +4,15 @@ English | [简体中文](README.md)
 
 SubLink powers short links and subdomain redirects for yet.la and similar multi-domain setups. The stack combines an HTTPS reverse proxy with an HTMX-enabled FastAPI admin so teams can manage routes under HTTP Basic authentication. Cloudflare terminates TLS, while Nginx proxies public traffic to the backend service.
 
-> Current version: **v1.10.9** — The admin dashboard now ships with Simplified Chinese and English translations, and the documentation set has matching bilingual coverage.
+> Current version: **v1.10.9.2** — The installer prints a version banner with a looping maintenance menu, and root-domain requests now redirect to `/admin` for faster access.
 
 ## Contents
 
 - [Highlights](#highlights)
 - [Prerequisites](#prerequisites)
 - [Quick start](#quick-start)
-- [One-command helpers](#one-command-helpers)
+- [TLS certificates & Nginx](#tls-certificates--nginx)
+- [Common commands](#common-commands)
 - [Smoke testing](#smoke-testing)
 - [Further reading](#further-reading)
 
@@ -35,63 +36,74 @@ SubLink powers short links and subdomain redirects for yet.la and similar multi-
 
 ## Quick start
 
-```bash
-# Fully automated install (recommended)
-bash <(curl -Ls "https://raw.githubusercontent.com/maiizii/sublink/main/install.sh")
+### One-click install
 
-# Manual deployment (requires Docker & docker compose ahead of time)
-git clone git@github.com:your-org/sublink.git
-cd sublink
-cp .env.example .env && vi .env
-docker compose up -d --build
-```
-
-> Curious about what the automation covers? Check [one-click deployment script](#one-click-deployment-script) for a step-by-step breakdown and management options.
-
-Nginx listens on `80/443`, redirects HTTP to HTTPS, and proxies requests to `backend:8000`.
-
-Sign in at `https://<your-domain>/admin` using the default `admin/admin` credentials, then open **Settings** to update domains, link rules, and brand assets. All changes persist to the SQLite database—no `.env` management required.
-
-## One-click deployment script
-
-On a fresh Ubuntu 20.04/22.04 host you can simply run:
+Designed for fresh Ubuntu 20.04/22.04 hosts. The Raw URL must include the `main` branch segment when fetching from `raw.githubusercontent.com`.
 
 ```bash
 bash <(curl -Ls "https://raw.githubusercontent.com/maiizii/sublink/main/install.sh")
 ```
 
-The script guides newcomers through every step on screen:
+The installer will:
 
-1. **System check** – requires root/sudo privileges, verifies `apt`, `docker`, and `docker compose`, and installs any missing components before starting the Docker daemon.
-2. **Repository sync** – clones the project into `/opt/sublink` by default (override with `SUBLINK_HOME`) and keeps it aligned with the `main` branch.
-3. **Interactive prompts** – collects:
-   - `BASE_DOMAIN` (mandatory, accepts multiple entries separated by spaces or commas);
-   - `CF_DNS_API_TOKEN` (mandatory, hidden input);
-   - `ACME_ACCOUNT_EMAIL` (optional, press Enter to skip);
-   - Admin username/password (press Enter to accept `admin` / `changeme`).
-4. **Automated rollout** – prepares the data directory, runs `docker compose pull` + `up -d --build`, registers a `sublink.service` systemd unit, and prints the admin URL plus handy commands.
+1. Ensure `curl`, `git`, `docker`, and the `docker compose` plugin are available;
+2. Clone or refresh the repository at `/opt/sublink` (override with `SUBLINK_HOME`) and stay aligned with the target branch;
+3. Prompt for `BASE_DOMAIN`, `CF_DNS_API_TOKEN`, `ACME_ACCOUNT_EMAIL`, and admin credentials while trimming Cloudflare tokens to avoid stray newlines;
+4. Run `docker compose up -d --build`, register the `sublink.service` unit, and print the admin endpoint plus handy commands.
 
-Re-running the same command detects existing installations and shows a management menu:
+Running the script again displays a looping maintenance menu:
 
 ```
-1) Update code and redeploy
-2) Redeploy only (skip git update)
-3) Stop services
-4) Start services
-5) Show status
-6) Uninstall completely
+1 Update code and redeploy
+2 Redeploy only (skip code update)
+3 Stop services
+4 Start services
+5 Restart services
+6 Show status
+7 Request/Renew TLS certificates
+8 Uninstall SubLink
+0 Exit
 ```
 
-- Option `1` performs a full `git pull`, refreshes `.env`, and restarts the stack.
-- Option `2` keeps the current code and simply reapplies your latest configuration.
-- Options `3/4/5` control or inspect the running services.
-- Option `6` shuts everything down, removes the systemd unit, and deletes `/opt/sublink` (confirmation required).
+Each choice returns to the prompt so you can chain multiple operations.
 
-> **Heads-up**
->
-> - The installer targets Ubuntu 20.04/22.04 with `apt` and systemd; adapt it before using other distributions.
-> - Customise the target directory or branch like so: `SUBLINK_HOME=/data/sublink SUBLINK_BRANCH=release bash <(curl -Ls ...)`.
-> - Edit `/opt/sublink/.env` at any time and rerun the script with option `2` to roll the new settings into the containers.
+### Manual deployment
+
+Prefer a fully manual rollout? Follow these steps:
+
+1. Refresh packages and install Git:
+   ```bash
+   sudo apt-get update
+   sudo apt-get install -y git
+   ```
+2. Clone the repository and enter the project directory:
+   ```bash
+   git clone https://github.com/maiizii/sublink.git
+   cd sublink
+   ```
+3. Install Docker and the Compose plugin (run `sudo ./scripts/setup-ubuntu.sh` or replicate its commands) and add your user to the `docker` group:
+   ```bash
+   sudo ./scripts/setup-ubuntu.sh
+   newgrp docker
+   ```
+4. Prepare configuration and data directories:
+   ```bash
+   cp .env.example .env
+   vi .env   # Update BASE_DOMAIN, CF_DNS_API_TOKEN, ACME_ACCOUNT_EMAIL, etc.
+   mkdir -p data
+   chmod 700 data
+   ```
+5. Build and start the stack:
+   ```bash
+   docker compose up -d --build
+   ```
+6. Verify services and health checks:
+   ```bash
+   docker compose ps
+   curl -sk https://<your-domain>/healthz
+   ```
+
+Sign in at `https://<your-domain>/admin` with the default `admin/admin` credentials. Visiting the bare primary domain (for example `https://yet.la`) now redirects to `/admin`, making the dashboard easy to find. Settings changes are stored in SQLite, so you rarely need to revisit `.env` after the first launch.
 
 ## TLS certificates & Nginx
 
@@ -105,7 +117,7 @@ Docker Compose starts an extra `cert_automation` service that manages certificat
 
 > See [docs/TLS_CERT_AUTOMATION.md](docs/TLS_CERT_AUTOMATION.md) for advanced usage and configuration notes.
 
-## One-command helpers
+## Common commands
 
 The root `Makefile` wraps common Docker Compose tasks:
 

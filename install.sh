@@ -5,7 +5,21 @@ REPO_URL="https://github.com/maiizii/sublink.git"
 INSTALL_DIR="${SUBLINK_HOME:-/opt/sublink}"
 BRANCH="${SUBLINK_BRANCH:-main}"
 SYSTEMD_SERVICE="sublink.service"
+PROJECT_VERSION="v1.10.9.2"
 APT_UPDATED=false
+
+print_banner() {
+  printf 'SubLink 短链子域管理平台%s 一键安装脚本\n\n' "$PROJECT_VERSION"
+  cat <<'BANNER'
+███████╗██╗   ██╗██████╗ ██╗     ██╗███╗   ██╗██╗  ██╗
+██╔════╝██║   ██║██╔══██╗██║     ██║████╗  ██║██║ ██╔╝
+███████╗██║   ██║██████╔╝██║     ██║██╔██╗ ██║█████╔╝
+╚════██║██║   ██║██╔══██╗██║     ██║██║╚██╗██║██╔═██╗
+███████║╚██████╔╝██████║ ███████╗██║██║ ╚████║██║   ██╗
+╚══════╝ ╚═════╝ ╚═╝  ╚═╝╚══════╝╚═╝╚═╝  ╚═══╝╚═╝   ╚═╝
+                                   Powered by MaiiZii
+BANNER
+}
 
 log() {
   local level="$1"; shift
@@ -135,7 +149,7 @@ import os
 from pathlib import Path
 
 key = os.environ["KEY"]
-value = os.environ["VALUE"]
+value = os.environ["VALUE"].replace("\r", "").replace("\n", "")
 path = Path(os.environ["FILE_PATH"])
 if not path.exists():
     lines = []
@@ -277,7 +291,7 @@ prepare_env() {
     token="$(prompt_secret CF_DNS_API_TOKEN "请输入 Cloudflare CF_DNS_API_TOKEN")"
     email="$(prompt_optional ACME_ACCOUNT_EMAIL "请输入 ACME 通知邮箱（可选，直接回车跳过）：")"
     admin_user="$(prompt_with_default ADMIN_USER "请输入管理员账号（默认 admin）：" "admin")"
-    admin_pass="$(prompt_with_default ADMIN_PASS "请输入管理员密码（默认 changeme）：" "changeme")"
+    admin_pass="$(prompt_with_default ADMIN_PASS "请输入管理员密码（默认 admin）：" "admin")"
     set_env BASE_DOMAIN "$domains"
     set_env CF_DNS_API_TOKEN "$token"
     set_env ACME_ACCOUNT_EMAIL "$email"
@@ -408,66 +422,76 @@ uninstall_stack() {
 }
 
 menu() {
-  cat <<MENU
+  while true; do
+    cat <<MENU
 检测到已安装的 SubLink 环境（目录：$INSTALL_DIR）。
 请选择操作：
   1) 更新代码并重新部署
   2) 仅重新部署（不更新代码）
   3) 停止服务
   4) 启动服务
-  5) 查看运行状态
-  6) 完全卸载
-  7) 重启服务
-  8) 申请/续签 TLS 证书
+  5) 重启服务
+  6) 查看运行状态
+  7) 申请/续签 TLS 证书
+  8) 卸载 SubLink
+  0) 退出
 MENU
-  read -r -p "请输入选项 [1-8]：" choice || true
-  case "$choice" in
-    1)
-      ensure_packages
-      install_docker
-      ensure_repo
-      update_repo
-      prepare_env reuse
-      deploy_stack
-      ;;
-    2)
-      ensure_packages
-      install_docker
-      ensure_repo
-      prepare_env reuse
-      deploy_stack
-      ;;
-    3)
-      stop_stack
-      ;;
-    4)
-      start_stack
-      ;;
-    5)
-      show_status
-      ;;
-    6)
-      read -r -p "确认要卸载并删除所有数据？(yes/NO)：" confirm || true
-      if [[ "$confirm" == "yes" ]]; then
-        uninstall_stack
-      else
-        log_warn "已取消卸载"
-      fi
-      ;;
-    7)
-      restart_stack
-      ;;
-    8)
-      ensure_packages
-      install_docker
-      ensure_repo
-      prepare_env reuse
-      request_certificates
-      ;;
-    *)
-      log_warn "无效选项"
-      ;;
-  esac
+    if ! read -r -p "请输入选项 [1-8]：" choice; then
+      echo
+      break
+    fi
+    case "$choice" in
+      1)
+        ensure_packages
+        install_docker
+        ensure_repo
+        update_repo
+        prepare_env reuse
+        deploy_stack
+        ;;
+      2)
+        ensure_packages
+        install_docker
+        ensure_repo
+        prepare_env reuse
+        deploy_stack
+        ;;
+      3)
+        stop_stack
+        ;;
+      4)
+        start_stack
+        ;;
+      5)
+        restart_stack
+        ;;
+      6)
+        show_status
+        ;;
+      7)
+        ensure_packages
+        install_docker
+        ensure_repo
+        prepare_env reuse
+        request_certificates
+        ;;
+      8)
+        read -r -p "确认要卸载并删除所有数据？(yes/NO)：" confirm || true
+        if [[ "$confirm" == "yes" ]]; then
+          uninstall_stack
+        else
+          log_warn "已取消卸载"
+        fi
+        ;;
+      0)
+        log_info "已退出管理菜单"
+        break
+        ;;
+      *)
+        log_warn "无效选项"
+        ;;
+    esac
+  done
 }
 
 initial_install() {
@@ -479,6 +503,7 @@ initial_install() {
 }
 
 main() {
+  print_banner
   require_root
   if [[ ! -f /etc/os-release ]]; then
     log_error "无法识别当前系统，请使用 Ubuntu 20.04/22.04 并确保存在 /etc/os-release"
