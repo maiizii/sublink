@@ -100,6 +100,7 @@ TRANSLATIONS = {
             "targetUrlSimple": "https://example.com",
             "subdomainPrefix": "如 marketing",
             "username": "如 alice",
+            "email": "如 user@example.com",
             "password": "至少 6 位",
             "passwordConfirm": "再次输入密码",
             "passwordOptional": "留空则不修改",
