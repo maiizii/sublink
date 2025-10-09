@@ -72,27 +72,37 @@ SubLink 是 yet.la 等多域名的自托管短链与子域跳转管理平台，�
 
 1. **域名解析**：在 DNS 服务商（如 Cloudflare）为主域（例如 `yet.la`）与其泛域名（如 `*.yet.la`）配置 A/AAAA 记录指向服务器公网 IP。
 2. **服务器环境**：Linux（推荐 Ubuntu 22.04 LTS），具备 root/sudo 权限。
-3. **运行依赖**：`git`、`docker`、`docker compose` 插件、`make`（用于 Makefile 命令）。
-4. **Cloudflare API Token（可选 ACME 邮箱）**：在 Cloudflare 控制台创建具备 `Zone.DNS` 编辑权限的 API Token。如需接收证书到期提醒，可额外准备一个邮箱用于 ACME 账号注册。
+3. **Cloudflare API Token（可选 ACME 邮箱）**：在 Cloudflare 控制台创建具备 `Zone.DNS` 编辑权限的 API Token。如需接收证书到期提醒，可额外准备一个邮箱用于 ACME 账号注册。
+4. **运行依赖（一键脚本会自动检查安装）**：`git`、`docker`、`docker compose` 插件、`make`（用于 Makefile 命令）。
+
 
 ## 快速开始
 
 ### 一键部署
 
-适用于全新 Ubuntu 20.04/22.04 主机。命令需包含 `main` 分支名称（`raw.githubusercontent.com` 必须指定分支路径）。
+适用于全新 Ubuntu 20.04/22.04 主机。
 
 ```bash
 bash <(curl -Ls "https://raw.githubusercontent.com/maiizii/sublink/main/install.sh")
 ```
+第一次运行需要按提示输入：
+
+1. 域名BASE_DOMAIN（必须输入，例如yet.la）；
+2. CF_DNS_API_TOKEN（必须输入，申请/续签证书用）；
+3. ACME_ACCOUNT_EMAIL（证书通知邮箱，可为空）；
+4. 用户名/密码（如果直接回车就是缺省的admin/admin）；
+
+如果部署成功后，可以直接访问https://域名/admin 进入管理后台
+（注：第一次申请证书需要些时间，如果打不开页面稍等一会儿再试）
 
 脚本会：
 
 1. 检查并安装 `curl`、`git`、`docker`、`docker compose` 等依赖；
 2. 克隆或更新仓库（默认路径 `/opt/sublink`，可通过 `SUBLINK_HOME` 覆盖）并保持与目标分支同步；
-3. 引导填写 `BASE_DOMAIN`、`CF_DNS_API_TOKEN`、`ACME_ACCOUNT_EMAIL` 及管理员账号密码，并自动清理 Cloudflare Token 输入中的换行符；
+3. 引导填写 `BASE_DOMAIN`、`CF_DNS_API_TOKEN`、`ACME_ACCOUNT_EMAIL` 及管理员账号密码；
 4. 执行 `docker compose up -d --build`、注册 `sublink.service` 并在完成后展示后台入口与常用命令。
 
-首次安装完成后再次执行脚本，会展示循环维护菜单：
+首次安装完成后如果再次执行脚本，会展示循环维护菜单：
 
 ```
 1 更新代码并重新部署
