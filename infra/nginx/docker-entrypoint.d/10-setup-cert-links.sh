@@ -5,6 +5,8 @@ TARGET_ROOT="${SSL_TARGET_DIR:-/etc/nginx/ssl}"
 SOURCE_ROOT="${SSL_SOURCE_DIR:-$TARGET_ROOT}"
 FULLCHAIN="$TARGET_ROOT/fullchain.cer"
 PRIVATE_KEY="$TARGET_ROOT/private.key"
+WAIT_TIMEOUT="${SSL_BOOTSTRAP_TIMEOUT:-600}"
+WAIT_INTERVAL="${SSL_BOOTSTRAP_INTERVAL:-5}"
 
 ensure_target_dir() {
     if [ -d "$TARGET_ROOT" ]; then
@@ -54,7 +56,7 @@ link_certificates() {
 
     if [ ! -w "$TARGET_ROOT" ]; then
         echo "[entrypoint] 证书目录不可写: $TARGET_ROOT" >&2
-        echo "[entrypoint] 请在宿主机创建 fullchain.cer 与 private.key，或放宽挂载权限" >&2
+        echo "[entrypoint] 请确认挂载权限或卷设置" >&2
         exit 1
     fi
 
@@ -62,7 +64,25 @@ link_certificates() {
     ln -sf "$source_private" "$PRIVATE_KEY"
     echo "[entrypoint] 已链接证书: $FULLCHAIN -> $source_fullchain" >&2
     echo "[entrypoint] 已链接私钥: $PRIVATE_KEY -> $source_private" >&2
-    exit 0
+    return 0
+}
+
+probe_sources() {
+    candidate_pair="$(find_cert_files "$SOURCE_ROOT")"
+    if [ -n "$candidate_pair" ]; then
+        link_certificates "${candidate_pair%|*}" "${candidate_pair#*|}"
+        return 0
+    fi
+
+    for candidate_dir in "$SOURCE_ROOT"/*; do
+        candidate_pair="$(find_cert_files "$candidate_dir")"
+        if [ -n "$candidate_pair" ]; then
+            link_certificates "${candidate_pair%|*}" "${candidate_pair#*|}"
+            return 0
+        fi
+    done
+
+    return 1
 }
 
 ensure_target_dir
@@ -77,19 +97,20 @@ if [ ! -d "$SOURCE_ROOT" ]; then
     exit 1
 fi
 
-# 首先检查源目录根路径
-candidate_pair="$(find_cert_files "$SOURCE_ROOT")"
-if [ -n "$candidate_pair" ]; then
-    link_certificates "${candidate_pair%|*}" "${candidate_pair#*|}"
-fi
-
-# 遍历源目录下的子目录，寻找常见的证书文件命名方式
-for candidate_dir in "$SOURCE_ROOT"/*; do
-    candidate_pair="$(find_cert_files "$candidate_dir")"
-    if [ -n "$candidate_pair" ]; then
-        link_certificates "${candidate_pair%|*}" "${candidate_pair#*|}"
+elapsed=0
+while [ "$elapsed" -le "$WAIT_TIMEOUT" ]; do
+    if probe_sources; then
+        exit 0
     fi
+
+    if [ "$WAIT_TIMEOUT" -eq 0 ]; then
+        break
+    fi
+
+    echo "[entrypoint] 未找到 TLS 证书，$WAIT_INTERVAL 秒后重试 (elapsed=${elapsed}s)" >&2
+    sleep "$WAIT_INTERVAL"
+    elapsed=$((elapsed + WAIT_INTERVAL))
 done
 
-echo "[entrypoint] 未找到 TLS 证书，请确认 $SOURCE_ROOT 下存在 fullchain/private 文件" >&2
+echo "[entrypoint] 等待 $WAIT_TIMEOUT 秒后仍未找到 TLS 证书，请确认自动签发服务是否正常" >&2
 exit 1
