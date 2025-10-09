@@ -52,9 +52,7 @@ install_docker() {
   chmod a+r /etc/apt/keyrings/docker.gpg
   . /etc/os-release
   cat <<REPO >/etc/apt/sources.list.d/docker.list
-deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] \\
-  https://download.docker.com/linux/ubuntu \\
-  ${VERSION_CODENAME} stable
+deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu ${VERSION_CODENAME} stable
 REPO
   log_step "刷新 Docker 软件源"
   apt-get update
