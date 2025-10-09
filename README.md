@@ -88,7 +88,7 @@ bash <(curl -Ls "https://raw.githubusercontent.com/maiizii/sublink/main/install.
 第一次运行需要按提示输入：
 
 1. 域名BASE_DOMAIN（必须输入，例如yet.la）；
-2. CF_DNS_API_TOKEN（必须输入，申请/续签证书用）；
+2. CF_DNS_API_TOKEN（必须输入，申请/续签证书用，可参考[Cloudflare 设置](#cloudflare-设置)）；
 3. ACME_ACCOUNT_EMAIL（证书通知邮箱，可为空）；
 4. 用户名/密码（如果直接回车就是缺省的admin/admin）；
 
@@ -269,6 +269,19 @@ server {
 ```
 
 ## Cloudflare 设置
+
+**如何申请CF_DNS_API_TOKEN**
+
+1. 登入 Cloudflare 控制台 → 点击右上角头像 → 选 我的个人资料（配置文件）
+2. 在左侧菜单中点 API 令牌
+3. 点击 创建令牌
+4. 选择模板 “编辑区域 DNS”（Edit zone DNS）
+5. 在权限设置中保持 “区域 → DNS → 编辑” 与 “区域 → 区域 → 读取”
+6. 在资源区域选择对应域名 （或“All zones”）
+7. 点击“继续至摘要”，确认无误后点击 创建令牌
+8. 系统生成一个令牌（只显示一次），复制保存，该令牌即为 CF_DNS_API_TOKEN
+
+**其他**
 
 1. **SSL/TLS 模式**：在 Cloudflare 控制台将域名的 SSL/TLS 模式设置为 **Full (strict)**，确保 Cloudflare 与源站之间使用有效证书。
 2. **DNS 记录**：为 `yet.la` 与 `*.yet.la` 创建 A/AAAA 记录指向服务器公网 IP。常规运行可保持「代理状态」开启（橙色云朵）。
