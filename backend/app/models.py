@@ -34,8 +34,8 @@ DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:////data/data.db")
 DEFAULT_SITE_DOMAIN = "yet.la"
 DEFAULT_SHORT_CODE_LENGTH = 6
 DEFAULT_SHORT_LINK_PATH = "/"
-DEFAULT_LOGO_URL = "https://img.811777.xyz/i/2025/10/04/68e0a00e3ab35.png"
-DEFAULT_ICON_URL = "https://img.811777.xyz/i/2025/10/04/68e0a010486cf.png"
+DEFAULT_LOGO_URL = "https://img.811777.xyz/i/2025/10/09/68e7c2a2d4967.png"
+DEFAULT_ICON_URL = "https://img.811777.xyz/i/2025/10/08/68e6364d2e46d.png"
 
 
 def _ensure_sqlite_directory(database_url: str) -> None:
