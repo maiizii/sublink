@@ -118,7 +118,8 @@ bash <(curl -Ls "https://raw.githubusercontent.com/maiizii/sublink/main/install.
 
 任意操作结束后会返回菜单提示，方便继续执行其他维护动作。
 
-**一键部署后可以通过编辑.env文件修改配置，之后再次运行一键脚本选1或2 即可重新部署。**
+**注：一键部署后可以通过编辑.env文件修改配置，之后再次运行一键脚本选1或2 即可重新部署。**
+
 
 ### 手动部署
 
