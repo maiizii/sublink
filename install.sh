@@ -372,7 +372,7 @@ INFO
 
 request_certificates() {
   detect_compose
-  log_step "触发证书申请/续签"
+  log_step "触发证书申请"
   if "${COMPOSE_BIN[@]}" -f "$INSTALL_DIR/docker-compose.yml" run --rm -e CERTBOT_ONESHOT=1 cert_automation; then
     log_info "证书申请流程已完成"
   else
@@ -432,7 +432,7 @@ menu() {
   4) 启动服务
   5) 重启服务
   6) 查看运行状态
-  7) 申请/续签 TLS 证书
+  7) 申请 TLS 证书
   8) 卸载 SubLink
   0) 退出
 MENU

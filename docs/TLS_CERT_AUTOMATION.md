@@ -28,6 +28,7 @@ SubLink 内置 `cert_automation` 容器，会按照后台配置的域名自动�
 | `ACME_DIRECTORY` | `https://acme-v02.api.letsencrypt.org/directory` | ACME 目录地址，可改为 Let's Encrypt Staging 或其他 CA（如使用 ZeroSSL 需同时设置 `ACME_EAB_KID` 与 `ACME_EAB_HMAC_KEY`）。 |
 | `CF_DNS_PROPAGATION_SECONDS` | `60` | 等待 Cloudflare DNS TXT 记录生效的时长（秒）。若区域 DNS 更新较慢可适当调大。 |
 | `CERTBOT_CHECK_INTERVAL_SECONDS` | `43200` | 证书检查与续签的轮询周期（秒）。默认 12 小时检查一次。 |
+| `CERTBOT_RENEW_BEFORE_EXPIRY_DAYS` | `15` | 自动续签会在证书过期前多少天触发。修改后需重启 `cert_automation` 容器生效。 |
 
 ## 日志与排障
 
