@@ -159,7 +159,7 @@ update_repo() {
   verify_branch
   log_step "拉取最新代码"
   git -C "$INSTALL_DIR" fetch --all --prune
-  if ! git -C "$INSTALL_DIR" fetch --depth 1 origin "$BRANCH"; then
+  if ! git -C "$INSTALL_DIR" fetch --depth 1 origin "refs/heads/${BRANCH}:refs/remotes/origin/${BRANCH}"; then
     log_error "无法获取分支 ${BRANCH} 的最新代码，请确认网络连接及分支是否存在"
     exit 1
   fi
