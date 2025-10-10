@@ -5,7 +5,7 @@ import secrets
 import string
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, Iterable
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -133,6 +133,7 @@ def _base_context(
     user: User | None = None,
     *,
     locale: str = DEFAULT_LOCALE,
+    extra_short_link_domains: Iterable[str] | None = None,
 ) -> dict[str, Any]:
     include_admin_only = user.is_admin if user else False
     managed_domains = get_accessible_managed_domains(
@@ -144,15 +145,26 @@ def _base_context(
 
     prefix_map: dict[str, str] = {}
     display_prefix_map: dict[str, str] = {}
-    for domain in managed_domains:
-        prefix = build_short_link_prefix(settings, domain)
+
+    def _ensure_prefix(domain: str) -> None:
+        normalized = (domain or "").strip()
+        if not normalized or normalized in prefix_map:
+            return
+        prefix = build_short_link_prefix(settings, normalized)
         display = prefix
         for scheme in ("https://", "http://"):
             if display.startswith(scheme):
                 display = display[len(scheme) :]
                 break
-        prefix_map[domain] = prefix
-        display_prefix_map[domain] = display
+        prefix_map[normalized] = prefix
+        display_prefix_map[normalized] = display
+
+    for domain in managed_domains:
+        _ensure_prefix(domain)
+
+    if extra_short_link_domains is not None:
+        for domain in extra_short_link_domains:
+            _ensure_prefix(domain)
 
     base_domain = primary_domain.strip().strip("/") or primary_domain
     base_url = f"https://{base_domain}".rstrip("/")
@@ -185,6 +197,7 @@ def _context_with_settings(
     user: User | None = None,
     *,
     locale_state: tuple[str, bool] | None = None,
+    extra_short_link_domains: Iterable[str] | None = None,
 ) -> tuple[dict[str, Any], SiteSettings, tuple[str, bool]]:
     settings = get_site_settings(db)
     if locale_state is None:
@@ -198,7 +211,13 @@ def _context_with_settings(
     else:
         resolved_locale = locale_state
         locale_value, _ = resolved_locale
-    context = _base_context(request, settings, user, locale=locale_value)
+    context = _base_context(
+        request,
+        settings,
+        user,
+        locale=locale_value,
+        extra_short_link_domains=extra_short_link_domains,
+    )
     return context, settings, resolved_locale
 
 
@@ -242,7 +261,10 @@ def admin_dashboard(
     blacklist_entries = _load_subdomain_blacklist(db) if current_user.is_admin else []
 
     context, settings, locale_state = _context_with_settings(
-        request, db, current_user
+        request,
+        db,
+        current_user,
+        extra_short_link_domains={link.domain for link in short_links},
     )
     managed_domains = context.get("managed_domains", [])
     primary_domain = context.get("primary_domain", settings.site_domain)
@@ -380,7 +402,12 @@ def short_link_count(
     """Return a small fragment containing the current short link count."""
 
     short_links = _load_short_links(db, current_user)
-    context, _, locale_state = _context_with_settings(request, db, current_user)
+    context, _, locale_state = _context_with_settings(
+        request,
+        db,
+        current_user,
+        extra_short_link_domains={link.domain for link in short_links},
+    )
     context.update({"count": len(short_links)})
     return _render_template(
         "admin/partials/link_count.html",
@@ -401,7 +428,12 @@ def short_link_table(
     """Return the short link table fragment for HTMX swaps."""
 
     short_links = _load_short_links(db, current_user)
-    context, _, locale_state = _context_with_settings(request, db, current_user)
+    context, _, locale_state = _context_with_settings(
+        request,
+        db,
+        current_user,
+        extra_short_link_domains={link.domain for link in short_links},
+    )
     context.update({"short_links": short_links, "show_user_column": current_user.is_admin})
     return _render_template(
         "admin/partials/link_table.html",
@@ -430,7 +462,12 @@ def short_link_row(
         )
     _ensure_link_access(short_link, current_user)
 
-    context, _, locale_state = _context_with_settings(request, db, current_user)
+    context, _, locale_state = _context_with_settings(
+        request,
+        db,
+        current_user,
+        extra_short_link_domains=[short_link.domain],
+    )
     context.update({"item": short_link, "show_user_column": current_user.is_admin})
     return _render_template(
         "admin/partials/link_row.html",
@@ -459,7 +496,12 @@ def short_link_edit_row(
         )
     _ensure_link_access(short_link, current_user)
 
-    context, _, locale_state = _context_with_settings(request, db, current_user)
+    context, _, locale_state = _context_with_settings(
+        request,
+        db,
+        current_user,
+        extra_short_link_domains=[short_link.domain],
+    )
     context.update({"item": short_link, "show_user_column": current_user.is_admin})
     return _render_template(
         "admin/partials/link_edit_row.html",
