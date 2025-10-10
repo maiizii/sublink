@@ -366,6 +366,52 @@ def test_admin_short_link_partials(client: "SimpleClient") -> None:
     assert "short-link-count" in count.text
 
 
+def test_short_link_edit_preserves_unmanaged_domain_option(
+    client: "SimpleClient",
+) -> None:
+    update = client.put(
+        "/api/settings",
+        data={
+            "managed_domains": "go2.you yet.la",
+            "short_code_length": "6",
+            "short_link_path": "/",
+            "logo_url": "https://img.example.com/logo.png",
+            "icon_url": "https://img.example.com/icon.png",
+        },
+        auth=ADMIN_AUTH,
+    )
+    assert update.status_code == 200
+
+    created = client.post(
+        "/api/links",
+        json={
+            "target_url": "https://example.com/preserved",
+            "code": "keep",
+            "domain": "yet.la",
+        },
+        auth=ADMIN_AUTH,
+    ).json()
+
+    removal = client.put(
+        "/api/settings",
+        data={
+            "managed_domains": "go2.you",
+            "short_code_length": "6",
+            "short_link_path": "/",
+            "logo_url": "https://img.example.com/logo.png",
+            "icon_url": "https://img.example.com/icon.png",
+        },
+        auth=ADMIN_AUTH,
+    )
+    assert removal.status_code == 200
+
+    edit_row = client.get(f"/admin/links/{created['id']}/edit", auth=ADMIN_AUTH)
+    assert edit_row.status_code == 200
+    assert '<option\n                value="yet.la"' in edit_row.text
+    assert "selected\n                hidden" in edit_row.text
+    assert 'data-display="yet.la/"' in edit_row.text
+
+
 def test_short_links_are_scoped_by_user(client: "SimpleClient") -> None:
     client.post(
         "/api/links",
