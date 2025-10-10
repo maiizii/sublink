@@ -7,6 +7,7 @@ BRANCH="${SUBLINK_BRANCH:-main}"
 SYSTEMD_SERVICE="sublink.service"
 PROJECT_VERSION="v1.10.9.2"
 APT_UPDATED=false
+BRANCH_VERIFIED=false
 
 print_banner() {
   printf '\nSubLink 短链子域管理平台%s 一键安装脚本\n\n' "$PROJECT_VERSION"
@@ -74,6 +75,28 @@ ensure_packages() {
   apt-get install -y curl git ca-certificates gnupg lsb-release python3
 }
 
+determine_repo_url() {
+  if [[ -d "$INSTALL_DIR/.git" ]]; then
+    git -C "$INSTALL_DIR" config --get remote.origin.url 2>/dev/null || echo "$REPO_URL"
+  else
+    echo "$REPO_URL"
+  fi
+}
+
+verify_branch() {
+  if [[ "$BRANCH_VERIFIED" == true ]]; then
+    return
+  fi
+  local repo_url
+  repo_url="$(determine_repo_url)"
+  if git ls-remote --exit-code "$repo_url" "refs/heads/${BRANCH}" >/dev/null 2>&1; then
+    BRANCH_VERIFIED=true
+    return
+  fi
+  log_error "远程仓库 ${repo_url} 中不存在分支 ${BRANCH}，请确认分支名称是否正确"
+  exit 1
+}
+
 install_docker() {
   if command -v docker >/dev/null 2>&1; then
     log_info "检测到 Docker 已安装：$(docker --version)"
@@ -123,6 +146,7 @@ detect_compose() {
 }
 
 ensure_repo() {
+  verify_branch
   if [[ -d "$INSTALL_DIR/.git" ]]; then
     return
   fi
@@ -132,8 +156,13 @@ ensure_repo() {
 }
 
 update_repo() {
+  verify_branch
   log_step "拉取最新代码"
   git -C "$INSTALL_DIR" fetch --all --prune
+  if ! git -C "$INSTALL_DIR" fetch --depth 1 origin "$BRANCH"; then
+    log_error "无法获取分支 ${BRANCH} 的最新代码，请确认网络连接及分支是否存在"
+    exit 1
+  fi
   git -C "$INSTALL_DIR" reset --hard "origin/${BRANCH}"
   git -C "$INSTALL_DIR" submodule update --init --recursive
 }
