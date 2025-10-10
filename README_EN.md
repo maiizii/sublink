@@ -23,6 +23,7 @@ SubLink powers short links and subdomain redirects for yet.la and similar multi-
 - **Role-based access**: `backend/app/models.py` defines the `users` table with administrator and standard roles for CRUD and password rotation.
 - **Subdomain guardrails**: `backend/app/subdomain_service.py` seeds reserved prefixes and surfaces `/api/subdomain-blacklist` for edits.
 - **Multi-domain control**: `backend/app/settings_service.py` persists `managed_domains`, normalises hostnames, and generates default `www.` mappings.
+- **Administrator-only domains**: Append `*` (for example `yet.la*`) to mark a domain as admin-only so standard users cannot choose it for links or redirects.
 - **Bilingual interface**: `backend/app/i18n/` contains Simplified Chinese and English strings. Users can switch languages from the top-right toggle in the dashboard.
 - **Deployment scripts**: `docker-compose*.yml` and `infra/nginx/docker-entrypoint.d/` automate container orchestration and certificate checks.
 - **Certificate automation**: `infra/cert-automation` watches the managed domains and requests TLS certificates via Cloudflare DNS-01, writing them to `/etc/nginx/ssl` and triggering live reloads.

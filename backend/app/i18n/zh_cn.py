@@ -124,7 +124,7 @@ TRANSLATIONS = {
             "saveSettings": "保存设置",
         },
         "helpers": {
-            "managedDomains": "空格分隔多个域名，首个为主域名。无需输入协议或路径。",
+            "managedDomains": "空格分隔多个域名，首个为主域名。域名末尾添加 * 可仅限管理员使用。无需输入协议或路径。",
             "shortCodeLength": "用于自动生成短链编码，可随时调整。",
             "shortLinkPath": "访问短链时的路径前缀，例如 /r/ 将生成 {example}。",
             "updateShortLink": "提交后会立即更新短链并刷新列表。",

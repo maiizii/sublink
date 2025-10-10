@@ -403,6 +403,70 @@ def test_short_links_are_scoped_by_user(client: "SimpleClient") -> None:
     assert admin_codes == {"admin-link", "alice"}
 
 
+def test_admin_only_domain_hidden_from_normal_users(client: "SimpleClient") -> None:
+    update = client.put(
+        "/api/settings",
+        data={
+            "managed_domains": "go2.you yet.la* tkgo.de",
+            "short_code_length": "6",
+            "short_link_path": "/",
+            "logo_url": "https://img.example.com/logo.png",
+            "icon_url": "https://img.example.com/icon.png",
+        },
+        auth=ADMIN_AUTH,
+    )
+    assert update.status_code == 200
+    assert update.json()["managed_domains"] == "go2.you yet.la* tkgo.de"
+
+    client.post(
+        "/api/users",
+        json={
+            "username": "alice",
+            "email": "alice@example.com",
+            "password": "alicepass",
+            "is_admin": False,
+        },
+        auth=ADMIN_AUTH,
+    )
+
+    normal_auth = ("alice", "alicepass")
+    forbidden = client.post(
+        "/api/links",
+        json={
+            "target_url": "https://example.com/alice",
+            "code": "alice-admin",
+            "domain": "yet.la",
+        },
+        auth=normal_auth,
+    )
+    assert forbidden.status_code == 422
+    assert forbidden.json() == {"detail": "域名不在管理列表中"}
+
+    allowed = client.post(
+        "/api/links",
+        json={
+            "target_url": "https://example.com/alice",
+            "code": "alice-public",
+            "domain": "tkgo.de",
+        },
+        auth=normal_auth,
+    )
+    assert allowed.status_code == 201
+    assert allowed.json()["domain"] == "tkgo.de"
+
+    admin_link = client.post(
+        "/api/links",
+        json={
+            "target_url": "https://example.com/admin",
+            "code": "admin-only",
+            "domain": "yet.la",
+        },
+        auth=ADMIN_AUTH,
+    )
+    assert admin_link.status_code == 201
+    assert admin_link.json()["domain"] == "yet.la"
+
+
 def test_short_link_precedence_over_subdomain_redirect(
     client: "SimpleClient",
 ) -> None:

@@ -31,6 +31,7 @@ def _canonicalize(raw: str | None) -> str | None:
         candidate = candidate.split(":", 1)[0]
 
     candidate = candidate.strip("./")
+    candidate = candidate.rstrip("*")
 
     if candidate.startswith("*."):
         candidate = candidate[2:]

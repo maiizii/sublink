@@ -100,7 +100,12 @@ class SiteSettings(Base):
     @property
     def domain_list(self) -> list[str]:  # pragma: no cover - 简单访问器
         raw = (self.managed_domains or "").split()
-        return [domain for domain in raw if domain]
+        domains: list[str] = []
+        for domain in raw:
+            if not domain:
+                continue
+            domains.append(domain[:-1] if domain.endswith("*") else domain)
+        return domains
 
 
 class User(Base):
@@ -233,7 +238,7 @@ def _fetch_primary_domain(session: Session | None = None) -> str:
         if settings is None:
             return DEFAULT_SITE_DOMAIN
         for candidate in (settings.managed_domains or "").split():
-            stripped = candidate.strip().lower()
+            stripped = candidate.strip().lower().rstrip("*")
             if stripped:
                 return stripped
         canonical = (settings.site_domain or "").strip().lower()

@@ -30,7 +30,7 @@ from .models import (
 )
 from .settings_service import (
     build_short_link_prefix,
-    get_managed_domains,
+    get_accessible_managed_domains,
     get_primary_domain,
     get_site_settings,
 )
@@ -134,9 +134,12 @@ def _base_context(
     *,
     locale: str = DEFAULT_LOCALE,
 ) -> dict[str, Any]:
-    managed_domains = get_managed_domains(settings)
+    include_admin_only = user.is_admin if user else False
+    managed_domains = get_accessible_managed_domains(
+        settings, include_admin_only=include_admin_only
+    )
     primary_domain = get_primary_domain(settings)
-    if primary_domain not in managed_domains:
+    if managed_domains and primary_domain not in managed_domains:
         managed_domains.insert(0, primary_domain)
 
     prefix_map: dict[str, str] = {}
