@@ -366,6 +366,52 @@ def test_admin_short_link_partials(client: "SimpleClient") -> None:
     assert "short-link-count" in count.text
 
 
+def test_short_link_edit_preserves_unmanaged_domain_option(
+    client: "SimpleClient",
+) -> None:
+    update = client.put(
+        "/api/settings",
+        data={
+            "managed_domains": "go2.you yet.la",
+            "short_code_length": "6",
+            "short_link_path": "/",
+            "logo_url": "https://img.example.com/logo.png",
+            "icon_url": "https://img.example.com/icon.png",
+        },
+        auth=ADMIN_AUTH,
+    )
+    assert update.status_code == 200
+
+    created = client.post(
+        "/api/links",
+        json={
+            "target_url": "https://example.com/preserved",
+            "code": "keep",
+            "domain": "yet.la",
+        },
+        auth=ADMIN_AUTH,
+    ).json()
+
+    removal = client.put(
+        "/api/settings",
+        data={
+            "managed_domains": "go2.you",
+            "short_code_length": "6",
+            "short_link_path": "/",
+            "logo_url": "https://img.example.com/logo.png",
+            "icon_url": "https://img.example.com/icon.png",
+        },
+        auth=ADMIN_AUTH,
+    )
+    assert removal.status_code == 200
+
+    edit_row = client.get(f"/admin/links/{created['id']}/edit", auth=ADMIN_AUTH)
+    assert edit_row.status_code == 200
+    assert '<option\n                value="yet.la"' in edit_row.text
+    assert "selected\n                hidden" in edit_row.text
+    assert 'data-display="yet.la/"' in edit_row.text
+
+
 def test_short_links_are_scoped_by_user(client: "SimpleClient") -> None:
     client.post(
         "/api/links",
@@ -465,6 +511,72 @@ def test_admin_only_domain_hidden_from_normal_users(client: "SimpleClient") -> N
     )
     assert admin_link.status_code == 201
     assert admin_link.json()["domain"] == "yet.la"
+
+
+def test_admin_only_domain_keeps_existing_links_visible(client: "SimpleClient") -> None:
+    original = client.get("/api/settings", auth=ADMIN_AUTH).json()
+
+    update = client.put(
+        "/api/settings",
+        data={
+            "managed_domains": "911777.xyz tkgo.de",
+            "short_code_length": str(original["short_code_length"]),
+            "short_link_path": original["short_link_path"],
+            "logo_url": original["logo_url"],
+            "icon_url": original["icon_url"],
+        },
+        auth=ADMIN_AUTH,
+    )
+    assert update.status_code == 200
+
+    client.post(
+        "/api/users",
+        json={
+            "username": "alice",
+            "email": "alice@example.com",
+            "password": "alicepass",
+            "is_admin": False,
+        },
+        auth=ADMIN_AUTH,
+    )
+
+    created = client.post(
+        "/api/links",
+        json={
+            "target_url": "https://example.com/alice",
+            "code": "alice-legacy",
+            "domain": "tkgo.de",
+        },
+        auth=("alice", "alicepass"),
+    )
+    assert created.status_code == 201
+
+    restrict = client.put(
+        "/api/settings",
+        data={
+            "managed_domains": "911777.xyz tkgo.de*",
+            "short_code_length": str(original["short_code_length"]),
+            "short_link_path": original["short_link_path"],
+            "logo_url": original["logo_url"],
+            "icon_url": original["icon_url"],
+        },
+        auth=ADMIN_AUTH,
+    )
+    assert restrict.status_code == 200
+
+    login = client.post(
+        "/admin/login",
+        data={"username": "alice", "password": "alicepass"},
+    )
+    assert login.status_code == 200
+
+    dashboard = client.get("/admin?tab=links")
+    assert dashboard.status_code == 200
+    assert "tkgo.de/alice-legacy" in dashboard.text
+
+    client.get("/admin/logout", follow_redirects=False)
+    reset = client.put("/api/settings", json=original, auth=ADMIN_AUTH)
+    assert reset.status_code == 200
 
 
 def test_short_link_precedence_over_subdomain_redirect(

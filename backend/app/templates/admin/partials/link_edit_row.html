@@ -10,6 +10,10 @@
       <div class="theme-form__grid theme-form__grid--single">
         <div class="theme-field">
           {% set current_domain = item.domain or primary_domain %}
+          {% set domain_choices = short_link_domains or [] %}
+          {% set include_current_domain = current_domain and current_domain not in domain_choices %}
+          {% set current_option_prefix = short_link_prefix_map.get(current_domain, short_link_prefix) %}
+          {% set current_option_display = short_link_display_prefix_map.get(current_domain, short_link_display_prefix) %}
           <div class="theme-field__header">
             <label for="code-{{ item.id }}" class="theme-label"
               >{{ _('admin.labels.shortLink') }}</label
@@ -23,6 +27,17 @@
               aria-label="{{ _('admin.aria.selectDomain') }}"
               {% if not current_user.is_admin %}disabled{% endif %}
             >
+              {% if include_current_domain %}
+              <option
+                value="{{ current_domain }}"
+                data-prefix="{{ current_option_prefix }}"
+                data-display="{{ current_option_display }}"
+                selected
+                hidden
+              >
+                {{ current_domain }}
+              </option>
+              {% endif %}
               {% for domain in short_link_domains %}
               {% set option_prefix = short_link_prefix_map.get(domain, short_link_prefix) %}
               {% set option_display = short_link_display_prefix_map.get(domain, short_link_display_prefix) %}

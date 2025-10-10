@@ -158,8 +158,12 @@ ensure_repo() {
 update_repo() {
   verify_branch
   log_step "拉取最新代码"
-  git -C "$INSTALL_DIR" fetch --all --prune
-  if ! git -C "$INSTALL_DIR" fetch --depth 1 origin "refs/heads/${BRANCH}:refs/remotes/origin/${BRANCH}"; then
+  if ! git -C "$INSTALL_DIR" fetch --all --prune; then
+    log_warn "无法通过普通 fetch 更新仓库，尝试强制同步指定分支"
+  fi
+  # 某些情况下本地的远程跟踪分支可能被手动修改，导致普通 fetch 出现 non-fast-forward 错误
+  # 加上 --force（或等价的前缀 +）可以强制覆盖远程跟踪分支，以便脚本继续部署最新代码
+  if ! git -C "$INSTALL_DIR" fetch --depth 1 --force origin "refs/heads/${BRANCH}:refs/remotes/origin/${BRANCH}"; then
     log_error "无法获取分支 ${BRANCH} 的最新代码，请确认网络连接及分支是否存在"
     exit 1
   fi

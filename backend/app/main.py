@@ -936,7 +936,12 @@ async def update_short_link(
     hx_request = request.headers.get("hx-request") == "true"
     if hx_request:
         message = _feedback_html(_t("admin.api.feedback.shortLinkUpdated"), tone="success")
-        context, _, _ = _admin_context_with_settings(request, db, current_user)
+        context, _, _ = _admin_context_with_settings(
+            request,
+            db,
+            current_user,
+            extra_short_link_domains=[short_link.domain],
+        )
         context.update(
             {
                 "item": short_link,
