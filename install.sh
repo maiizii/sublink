@@ -32,6 +32,16 @@ log_info() { log "信息" "$*"; }
 log_warn() { log "警告" "$*"; }
 log_error() { log "错误" "$*"; }
 
+usage() {
+  cat <<EOF
+用法: $0 [-b 分支名] [-h]
+
+选项：
+  -b 分支名    指定要拉取的 Git 分支（默认为 main，可通过 SUBLINK_BRANCH 环境变量覆盖）
+  -h           显示此帮助信息并退出
+EOF
+}
+
 require_root() {
   if [[ ${EUID:-$(id -u)} -ne 0 ]]; then
     log_error "请使用 root 或 sudo 权限运行：sudo bash install.sh"
@@ -504,6 +514,35 @@ initial_install() {
 }
 
 main() {
+  OPTIND=1
+  while getopts ":b:h" opt; do
+    case "$opt" in
+      b)
+        BRANCH="$OPTARG"
+        ;;
+      h)
+        usage
+        exit 0
+        ;;
+      :) 
+        log_error "选项 -$OPTARG 需要参数"
+        usage
+        exit 1
+        ;;
+      ?)
+        log_error "未知选项：-$OPTARG"
+        usage
+        exit 1
+        ;;
+    esac
+  done
+  shift $((OPTIND - 1))
+  if (($# > 0)); then
+    log_error "检测到多余的参数：$*"
+    usage
+    exit 1
+  fi
+
   print_banner
   require_root
   if [[ ! -f /etc/os-release ]]; then
@@ -515,6 +554,7 @@ main() {
     exit 1
   fi
   export DEBIAN_FRONTEND=noninteractive
+  log_info "当前部署分支：$BRANCH"
   if [[ -d "$INSTALL_DIR/.git" ]]; then
     menu
   else
