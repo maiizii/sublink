@@ -22,6 +22,7 @@ from .deps import (
     require_authenticated_user,
     validate_credentials,
 )
+from .session import SESSION_COOKIE_NAME, set_session
 from .models import (
     Base,
     ShortLink,
@@ -62,7 +63,7 @@ from .settings_service import (
     build_short_link_prefix,
     ensure_default_settings,
     extract_short_link,
-    get_managed_domains,
+    get_accessible_managed_domains,
     get_primary_domain,
     get_site_settings,
     resolve_short_link_host_map,
@@ -123,6 +124,42 @@ app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 app.include_router(admin_router)
 
 
+async def _materialize_response(response: Response) -> Response:
+    """Return a concrete response with an eagerly rendered body."""
+
+    if not isinstance(response, Response):
+        return response
+
+    if hasattr(response, "body"):
+        body = response.body or b""
+    else:
+        iterator = getattr(response, "body_iterator", None)
+        if iterator is None:
+            body = b""
+        else:
+            chunks: list[bytes] = []
+            async for chunk in iterator:  # type: ignore[assignment]
+                if isinstance(chunk, (bytes, bytearray)):
+                    chunks.append(bytes(chunk))
+                elif chunk is not None:
+                    chunks.append(str(chunk).encode("utf-8"))
+            if hasattr(iterator, "aclose"):
+                await iterator.aclose()  # type: ignore[attr-defined]
+            body = b"".join(chunks)
+    materialized = Response(
+        content=body,
+        status_code=response.status_code,
+        media_type=response.media_type,
+        background=response.background,
+    )
+    materialized.raw_headers = []
+    for key, value in response.headers.raw:
+        if key.lower() == b"content-length":
+            continue
+        materialized.raw_headers.append((key, value))
+    return materialized
+
+
 @app.middleware("http")
 async def apply_request_locale(request: Request, call_next):
     """Resolve and activate the locale for the current request lifecycle."""
@@ -135,6 +172,8 @@ async def apply_request_locale(request: Request, call_next):
         response = await call_next(request)
     finally:
         reset_locale(token)
+    response = await _materialize_response(response)
+    session_data = getattr(request.state, "_sublink_session", None)
     if should_set_cookie:
         response.set_cookie(
             LOCALE_COOKIE_NAME,
@@ -143,6 +182,16 @@ async def apply_request_locale(request: Request, call_next):
             samesite="lax",
             path="/",
         )
+    if isinstance(session_data, dict) and session_data:
+        response.raw_headers = [
+            (key, value)
+            for key, value in response.raw_headers
+            if not (
+                key.lower() == b"set-cookie"
+                and value.startswith(SESSION_COOKIE_NAME.encode("latin-1"))
+            )
+        ]
+        set_session(response, request, session_data)
     return response
 
 
@@ -745,9 +794,11 @@ async def create_short_link(
     """创建短链接，code 可空自动生成。"""
 
     settings = get_site_settings(db)
-    managed_domains = get_managed_domains(settings)
+    managed_domains = get_accessible_managed_domains(
+        settings, include_admin_only=current_user.is_admin
+    )
     primary_domain = get_primary_domain(settings)
-    domain = payload.domain or primary_domain
+    domain = payload.domain or (managed_domains[0] if managed_domains else primary_domain)
     if domain not in managed_domains:
         raise HTTPException(
             status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -847,7 +898,9 @@ async def update_short_link(
     _ensure_short_link_permission(short_link, current_user)
 
     settings = get_site_settings(db)
-    managed_domains = get_managed_domains(settings)
+    managed_domains = get_accessible_managed_domains(
+        settings, include_admin_only=current_user.is_admin
+    )
     target_domain = payload.domain or short_link.domain
     if target_domain not in managed_domains:
         raise HTTPException(
@@ -936,7 +989,9 @@ async def create_subdomain(
     """创建子域跳转规则，Host 为完整域名。"""
 
     settings = get_site_settings(db)
-    managed_domains = get_managed_domains(settings)
+    managed_domains = get_accessible_managed_domains(
+        settings, include_admin_only=current_user.is_admin
+    )
 
     host = payload.host
     if not current_user.is_admin:
@@ -1390,7 +1445,9 @@ async def update_subdomain(
     """更新子域跳转规则。"""
 
     settings = get_site_settings(db)
-    managed_domains = get_managed_domains(settings)
+    managed_domains = get_accessible_managed_domains(
+        settings, include_admin_only=current_user.is_admin
+    )
 
     redirect = db.get(SubdomainRedirect, redirect_id)
     if redirect is None:

@@ -124,7 +124,7 @@ TRANSLATIONS = {
             "saveSettings": "Save settings",
         },
         "helpers": {
-            "managedDomains": "Separate domains with spaces. The first entry becomes the primary domain. Protocols and paths are not required.",
+            "managedDomains": "Separate domains with spaces. Append * to restrict a domain to administrators. The first entry becomes the primary domain. Protocols and paths are not required.",
             "shortCodeLength": "Controls the auto-generated short code length. Adjust as needed.",
             "shortLinkPath": "Prefix used when serving short links. For example /r/ produces {example}.",
             "updateShortLink": "Changes apply immediately and refresh the table.",

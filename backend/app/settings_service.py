@@ -31,15 +31,36 @@ def normalize_site_domain(value: str | None) -> str:
     return raw or DEFAULT_SITE_DOMAIN
 
 
+_ADMIN_ONLY_SUFFIX = "*"
+
+
+def _strip_admin_suffix(value: str) -> tuple[str, bool]:
+    """Return the normalized domain without suffix and whether it is admin only."""
+
+    admin_only = value.endswith(_ADMIN_ONLY_SUFFIX)
+    core = value[:-1] if admin_only else value
+    normalized = normalize_site_domain(core)
+    return normalized, admin_only
+
+
 def normalize_managed_domains(value: str | None) -> list[str]:
     """Normalize a space separated list of managed domains."""
 
     raw = (value or "").replace(",", " ")
     domains: list[str] = []
+    seen: dict[str, int] = {}
     for candidate in raw.split():
-        normalized = normalize_site_domain(candidate)
-        if normalized not in domains:
-            domains.append(normalized)
+        core, admin_only = _strip_admin_suffix(candidate)
+        marker = _ADMIN_ONLY_SUFFIX if admin_only else ""
+        composed = f"{core}{marker}" if core else core
+        if not core:
+            continue
+        if core in seen:
+            index = seen[core]
+            domains[index] = composed
+        else:
+            seen[core] = len(domains)
+            domains.append(composed)
     if not domains:
         domains.append(DEFAULT_SITE_DOMAIN)
     return domains
@@ -70,11 +91,44 @@ def get_managed_domains(settings: SiteSettings) -> list[str]:
     return domains
 
 
+def strip_admin_only_marker(domain: str) -> str:
+    """Return the managed domain without the administrator-only marker."""
+
+    if domain.endswith(_ADMIN_ONLY_SUFFIX):
+        return domain[:-1]
+    return domain
+
+
+def is_admin_only_domain(domain: str) -> bool:
+    """Indicate whether the managed domain is restricted to administrators."""
+
+    return domain.endswith(_ADMIN_ONLY_SUFFIX)
+
+
+def get_accessible_managed_domains(
+    settings: SiteSettings, *, include_admin_only: bool = True
+) -> list[str]:
+    """Return managed domains visible to the current audience."""
+
+    domains: list[str] = []
+    for raw in get_managed_domains(settings):
+        if is_admin_only_domain(raw) and not include_admin_only:
+            continue
+        cleaned = strip_admin_only_marker(raw)
+        if cleaned and cleaned not in domains:
+            domains.append(cleaned)
+    return domains
+
+
 def get_primary_domain(settings: SiteSettings) -> str:
     """Return the primary managed domain for display and defaults."""
 
     domains = get_managed_domains(settings)
-    return domains[0] if domains else DEFAULT_SITE_DOMAIN
+    for domain in domains:
+        cleaned = strip_admin_only_marker(domain)
+        if cleaned:
+            return cleaned
+    return DEFAULT_SITE_DOMAIN
 
 
 def resolve_short_link_host_map(settings: SiteSettings) -> dict[str, str]:
@@ -82,14 +136,15 @@ def resolve_short_link_host_map(settings: SiteSettings) -> dict[str, str]:
 
     host_map: dict[str, str] = {}
     for domain in get_managed_domains(settings):
-        canonical = domain.strip().lower()
+        cleaned_domain = strip_admin_only_marker(domain)
+        canonical = cleaned_domain.strip().lower()
         if not canonical:
             continue
-        host_map[canonical] = domain
+        host_map[canonical] = cleaned_domain
         if canonical.startswith("www."):
-            host_map[canonical[4:]] = domain
+            host_map[canonical[4:]] = cleaned_domain
         else:
-            host_map[f"www.{canonical}"] = domain
+            host_map[f"www.{canonical}"] = cleaned_domain
     return {host: value for host, value in host_map.items() if host}
 
 
@@ -159,7 +214,7 @@ def get_site_settings(db: Session) -> SiteSettings:
     if settings is not None:
         domains = normalize_managed_domains(settings.managed_domains)
         normalized = " ".join(domains)
-        primary = domains[0]
+        primary = strip_admin_only_marker(domains[0]) if domains else DEFAULT_SITE_DOMAIN
         updated = False
         if settings.managed_domains != normalized:
             settings.managed_domains = normalized
@@ -194,7 +249,7 @@ def update_site_settings(
 
     settings = get_site_settings(db)
     domains = normalize_managed_domains(managed_domains)
-    settings.site_domain = domains[0]
+    settings.site_domain = strip_admin_only_marker(domains[0])
     settings.managed_domains = " ".join(domains)
     settings.short_code_length = normalize_short_code_length(short_code_length)
     settings.short_link_path = normalize_short_link_path(short_link_path)
