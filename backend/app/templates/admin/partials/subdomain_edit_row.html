@@ -16,6 +16,8 @@
             <label for="host-{{ item.id }}" class="theme-label"
               >{{ _('admin.labels.subdomain') }}</label
             >
+            {% set domain_choices = managed_domains or [] %}
+            {% set include_current_domain = current_domain and current_domain not in domain_choices %}
             <select
               id="subdomain-domain-{{ item.id }}"
               name="domain"
@@ -24,6 +26,16 @@
               aria-label="{{ _('admin.aria.selectDomain') }}"
               {% if not current_user.is_admin %}disabled{% endif %}
             >
+              {% if include_current_domain %}
+              <option
+                value="{{ current_domain }}"
+                data-domain-suffix="{{ current_domain }}"
+                selected
+                hidden
+              >
+                {{ current_domain }}
+              </option>
+              {% endif %}
               {% for domain in managed_domains %}
               <option
                 value="{{ domain }}"
