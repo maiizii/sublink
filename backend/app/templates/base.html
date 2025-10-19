@@ -502,6 +502,12 @@
         white-space: nowrap;
       }
 
+      .theme-footer__icon {
+        width: 1em;
+        height: 1em;
+        fill: currentColor;
+      }
+
       .theme-footer a {
         color: inherit;
         text-decoration: none;
@@ -2652,7 +2658,12 @@
     </main>
     <footer class="theme-footer">
       <span class="theme-footer__copyright">© {{ current_year }} {{ site_settings.site_domain }}</span>
-      <span class="theme-footer__powered">Powered by <a href="https://github.com/maiizii/sublink" target="_blank" rel="noopener noreferrer">MaiiZii</a></span>
+      <span class="theme-footer__powered">
+        <svg class="theme-footer__icon" viewBox="0 0 24 24" aria-hidden="true">
+          <path fill-rule="evenodd" clip-rule="evenodd" d="M12 2C6.475 2 2 6.588 2 12.253c0 4.528 2.865 8.37 6.839 9.73.5.094.683-.22.683-.49 0-.242-.01-1.04-.015-1.887-2.782.615-3.37-1.214-3.37-1.214-.455-1.176-1.11-1.49-1.11-1.49-.908-.634.069-.621.069-.621 1.004.073 1.532 1.05 1.532 1.05.892 1.556 2.341 1.107 2.91.846.092-.662.35-1.107.636-1.362-2.22-.26-4.555-1.137-4.555-5.059 0-1.118.386-2.031 1.02-2.748-.103-.26-.442-1.31.097-2.73 0 0 .833-.27 2.73 1.049a9.32 9.32 0 0 1 2.486-.344 9.29 9.29 0 0 1 2.485.344c1.898-1.319 2.73-1.05 2.73-1.05.54 1.422.2 2.472.099 2.733.635.717 1.02 1.63 1.02 2.749 0 3.932-2.34 4.796-4.57 5.05.359.318.678.944.678 1.904 0 1.374-.013 2.48-.013 2.817 0 .272.18.59.688.49C19.138 20.62 22 16.78 22 12.253 22 6.588 17.522 2 12 2Z" />
+        </svg>
+        <a href="https://github.com/maiizii/sublink" target="_blank" rel="noopener noreferrer">GitHub</a>
+      </span>
     </footer>
   </body>
 </html>
